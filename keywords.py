@@ -21,7 +21,7 @@ def read_file(file_path):
 def generate_keywords(content, schema_file, gen_struct_path):
     """Generate keywords using gen_struct.py."""
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as temp_input:
-        temp_input.write("extract the 5 most important keywords that can be used as topic to publish a blog. No space in the keyword, it shoud be one word. It should be common topics on medium, dev.to, zhihu, etc. \n\n")
+        temp_input.write("extract the 5 most important keywords that can be used as topic to publish a blog. No space in the keyword, it shoud be one word. It should be common topics on medium, dev.to, zhihu, etc. The keywords should be in the same language as the content. \n\n")
         temp_input.write(content)
         temp_input_path = temp_input.name
 

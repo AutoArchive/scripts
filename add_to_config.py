@@ -16,7 +16,7 @@ def check_and_publish(docs_dir, config_path):
     """Check all English .md files and update publishing information."""
     config = read_json(config_path)
     passages = config.get("passages", {})
-    platforms = ["medium", "dev.to"]
+    platforms = ["medium", "devto"]
 
     for root, _, files in os.walk(docs_dir):
         for file in files:

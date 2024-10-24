@@ -12,3 +12,19 @@ sed '/{{table_of_contents}}/r /dev/stdin' .github/README.md.template < <(echo "$
 sed '/{{table_of_contents}}/r /dev/stdin' .github/index.md.template < <(echo "$toc_index") | sed '/{{table_of_contents}}/d' > docs/index.md
 
 echo "Table of contents updated in README.md and docs/index.md"
+
+python .github/manage/add_to_config.py docs .github/config.json
+
+echo "Publishing information updated in config.json"
+
+python .github/manage/translate.py docs .github/config.json
+
+echo "Translations updated in config.json"
+
+python .github/manage/keywords.py
+
+echo "Keywords updated in config.json"
+
+python .github/manage/notice.py
+
+echo "Notice updated in config.json"

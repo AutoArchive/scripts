@@ -147,12 +147,16 @@ def main():
         if platform not in config["passages"][file_path].get("published", []):
             try:
                 if publish_to_platform(platform, content, title, config):
-                    # Update config
-                    if "published" not in config["passages"][file_path]:
-                        config["passages"][file_path]["published"] = []
-                    config["passages"][file_path]["published"].append(platform)
-                    write_json(config_path, config)
-                    print(f"Successfully published to {platform}: {file_path}")
+                    # Check if not publishing as draft
+                    if not os.environ.get('PUBLISH_AS_DRAFT', 'true').lower() == 'true':
+                        # Update config
+                        if "published" not in config["passages"][file_path]:
+                            config["passages"][file_path]["published"] = []
+                        config["passages"][file_path]["published"].append(platform)
+                        write_json(config_path, config)
+                        print(f"Successfully published to {platform}: {file_path}")
+                    else:
+                        print(f"Published as draft to {platform}: {file_path}")
                     return  # Exit after publishing to one platform
                 else:
                     print(f"Failed to publish to {platform}: {file_path}")

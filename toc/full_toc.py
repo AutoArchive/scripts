@@ -1,3 +1,10 @@
+#! /usr/bin/env python3
+# Generate full toc for the project
+# the full toc is used for the index page
+# it includes all the categories and files in the toc
+# The template is:
+# .github/README.md.template
+
 import os
 import re
 import sys

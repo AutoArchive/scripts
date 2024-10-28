@@ -20,14 +20,17 @@ def natural_sort_key(s):
 
 def generate_file_entry(file_info):
     """Generate markdown entry for a file based on its type."""
-    name = file_info['name']
-    filename = file_info['filename']
-    file_type = file_info['type']
+    name = file_info.get('name', 'Unknown') or 'Unknown'
+    filename = file_info.get('filename', 'Unknown') or 'Unknown'
+    file_type = file_info.get('type', 'Unknown') or 'Unknown'
+    
+    # Check if a page entry exists for non-image files
+    page_link = file_info.get('page', filename) if file_type != 'image' else filename
     
     if file_type == 'image':
         return f"[{name}]({filename})\n\n![{name}]({filename})\n\n"
     else:
-        return f"- [{name}]({filename})"
+        return f"- [{name}]({page_link})"
 
 def generate_categorized_file_toc(files):
     """Generate TOC for files, categorized by type."""

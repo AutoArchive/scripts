@@ -69,6 +69,8 @@ class EntryDetector:
             return False
         if filename.startswith('.'):
             return False
+        if filename.endswith('_page.md'):  # Ignore files ending with _page.md
+            return False
         if self.is_ignored(filepath):
             return False
         return True

@@ -138,50 +138,78 @@ def get_ai_classification(file_path, gen_struct_path):
         os.unlink(temp_output_path)
         os.unlink(schema_file)
 
+def should_skip_file(file_path, workspace_dir):
+    """Check if file should be skipped based on various criteria
+    Args:
+        file_path: absolute Path object of the file
+        workspace_dir: absolute Path object of workspace directory
+    """
+    # Get relative path from workspace directory
+    try:
+        relative_path = file_path.relative_to(workspace_dir)
+    except ValueError:
+        print(f"Error: {file_path} is not in workspace directory")
+        return True
+
+    # Skip files larger than 10MB
+    if file_path.stat().st_size > 10 * 1024 * 1024:
+        print(f"Skipping {relative_path}: File too large")
+        return True
+        
+    # Skip system files
+    if any(part.startswith('.') for part in relative_path.parts):
+        print(f"Skipping {relative_path}: System file/directory")
+        return True
+        
+    # Skip common binary/executable files
+    binary_extensions = {'.exe', '.dll', '.so', '.dylib', '.bin'}
+    if file_path.suffix.lower() in binary_extensions:
+        print(f"Skipping {relative_path}: Binary file")
+        return True
+        
+    return False
+
 def process_workspace():
-    workspace_dir = Path("workspace")
+    workspace_dir = Path("workspace").resolve()  # Get absolute path
     if not workspace_dir.exists():
         print("Workspace directory not found")
         return
 
     gen_struct_path = '.github/scripts/ai/gen_struct.py'
 
-    # Process each file in workspace
-    for file_path in workspace_dir.glob('*'):
-        if not file_path.is_file():
-            continue
+    # Process each file in workspace recursively
+    for root, dirs, files in os.walk(workspace_dir):
+        for filename in files:
+            file_path = Path(root) / filename
+            print(f"Processing: {file_path}")
 
-        print(f"Processing: {file_path}")
+            # Check if file should be skipped
+            if should_skip_file(file_path, workspace_dir):
+                continue
 
-        # 1. Check file size (10MB = 10 * 1024 * 1024 bytes)
-        if file_path.stat().st_size > 10 * 1024 * 1024:
-            print(f"Skipping {file_path}: File too large")
-            continue
-
-        # 2. Check MD5
-        file_md5 = calculate_md5(file_path)
-        if check_file_exists_by_md5(file_md5):
-            print(f"Skipping {file_path}: MD5 already exists")
-            continue
-        print("file_md5: ", file_md5)
-        print("Checking file exists by md5 success, new file")
-        # 3. AI classification
-        classification = get_ai_classification(file_path, gen_struct_path)
-        print("classification: ", classification)
-        
-        if classification:
-            suggested_path = classification['suggested_path']
-            if suggested_path == "未知":
-                # If no suitable directory found, move to root
-                shutil.copy2(file_path, Path(".") / file_path.name)
-                print(f"Moved {file_path.name} to root directory")
-            else:
-                target_path = Path(suggested_path)
-                # Create parent directories if they don't exist
-                target_path.mkdir(parents=True, exist_ok=True)
-                # Copy the file to the suggested location
-                shutil.copy2(file_path, target_path / file_path.name)
-                print(f"Moved {file_path.name} to {target_path}")
+            # 2. Check MD5
+            file_md5 = calculate_md5(file_path)
+            if check_file_exists_by_md5(file_md5):
+                print(f"Skipping {file_path}: MD5 already exists")
+                continue
+            
+            # 3. AI classification
+            classification = get_ai_classification(file_path, gen_struct_path)
+            print("classification: ", classification)
+            
+            if classification:
+                suggested_path = classification['suggested_path']
+                if suggested_path == "未知":
+                    # If no suitable directory found, move to root
+                    shutil.copy2(file_path, Path(".") / file_path.name)
+                    print(f"Moved {file_path.name} to root directory")
+                else:
+                    target_path = Path(suggested_path)
+                    # Create parent directories if they don't exist
+                    target_path.mkdir(parents=True, exist_ok=True)
+                    # Copy the file to the suggested location
+                    shutil.copy2(file_path, target_path / file_path.name)
+                    print(f"Moved {file_path.name} to {target_path}")
 
     # Rename workspace to old_workspace after processing
     if workspace_dir.exists():

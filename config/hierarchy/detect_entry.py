@@ -95,6 +95,7 @@ class EntryDetector:
         config = {
             # Directory-level metadata
             'name': '' if directory == '.' else os.path.basename(directory),
+            'description': '',  # Collection description
             'curator': '',  # Person/org managing this collection
             'source': '',  # Source organization/archive
             'tags': [],  # Collection categories/themes

@@ -95,6 +95,10 @@ def process_directory(directory):
     # Generate TOC content
     toc_content = []
     
+    # Add description if available
+    if 'description' in config:
+        toc_content.append(f"{config['description']}\n")
+    
     # Add subdirectories section
     if config.get('subdirs'):
         toc_content.append("### 📁 子目录\n")
@@ -108,6 +112,9 @@ def process_directory(directory):
         files_toc = generate_categorized_file_toc(config['files'])
         if files_toc:
             toc_content.append(files_toc)
+    
+    # Add auto-generated note
+    toc_content.append("\n> 本内容为自动生成，请修改 .github/ 目录下的对应脚本或者模板\n")
     
     toc = "\n".join(toc_content)
     

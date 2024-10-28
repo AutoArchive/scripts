@@ -4,6 +4,7 @@ import openai
 import argparse
 from openai import OpenAI
 from dotenv import load_dotenv
+import base64
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -25,15 +26,42 @@ def write_file(file_path, content):
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
-def generate_cleanup_content(content, schema):
+def encode_image(image_path):
+    """Encode image to base64 string."""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+def generate_cleanup_content(content, schema, image_path=None):
     """Send the prompt and content to OpenAI's API and get the structured content."""
+    
+    messages = [
+        {"role": "system", "content": f"You are a helpful assistant that generates structured output based on the following JSON schema: {json.dumps(schema)}"}
+    ]
+
+    # Prepare user message with optional image
+    if image_path:
+        base64_image = encode_image(image_path)
+        messages.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": content
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}"
+                    }
+                }
+            ]
+        })
+    else:
+        messages.append({"role": "user", "content": content})
 
     completion = client.chat.completions.create(
         model=model_name,
-        messages=[
-            {"role": "system", "content": f"You are a helpful assistant that generates structured output based on the following JSON schema: {json.dumps(schema)}"},
-            {"role": "user", "content": content}
-        ],
+        messages=messages,
         response_format={
             "type": "json_schema",
             "json_schema": {
@@ -54,6 +82,7 @@ def main():
     parser.add_argument('input_file', help='Path to the input .txt file')
     parser.add_argument('output_file', help='Path to save the structured output file')
     parser.add_argument('schema_file', help='Path to the JSON schema file')
+    parser.add_argument('--image', help='Optional path to an image file', default=None)
 
     args = parser.parse_args()
 
@@ -64,8 +93,8 @@ def main():
         # Read schema file
         schema = json.loads(read_file(args.schema_file))
 
-        # Generate structured content
-        structured_content = generate_cleanup_content(input_content, schema)
+        # Generate structured content with optional image
+        structured_content = generate_cleanup_content(input_content, schema, args.image)
 
         # Write to output file
         write_file(args.output_file, json.dumps(structured_content, indent=2))

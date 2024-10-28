@@ -5,6 +5,7 @@ import hashlib
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
+import datetime
 
 class EntryDetector:
     def __init__(self):
@@ -14,6 +15,30 @@ class EntryDetector:
             'video': ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'],
             'audio': ['.mp3', '.wav', '.ogg', '.m4a'],
             'other': []
+        }
+        self.format_mapping = {
+            # Documents
+            '.pdf': 'PDF Document',
+            '.doc': 'Microsoft Word Document',
+            '.docx': 'Microsoft Word Document (OpenXML)',
+            '.txt': 'Plain Text',
+            '.md': 'Markdown',
+            # Images
+            '.jpg': 'JPEG Image',
+            '.jpeg': 'JPEG Image',
+            '.png': 'PNG Image',
+            '.gif': 'GIF Image',
+            '.webp': 'WebP Image',
+            # Video
+            '.mp4': 'MPEG-4 Video',
+            '.avi': 'AVI Video',
+            '.mov': 'QuickTime Video',
+            '.webm': 'WebM Video',
+            # Audio
+            '.mp3': 'MP3 Audio',
+            '.wav': 'WAV Audio',
+            '.ogg': 'OGG Audio',
+            '.m4a': 'M4A Audio',
         }
         self.changes = []  # Track changes
     
@@ -56,10 +81,26 @@ class EntryDetector:
                 return file_type
         return 'other'
     
+    def get_file_format(self, filepath: str) -> str:
+        """Get detailed format information using file extension."""
+        ext = os.path.splitext(filepath)[1].lower()
+        return self.format_mapping.get(ext, 'Unknown Format')
+    
+    def format_timestamp(self, timestamp: float) -> str:
+        """Convert a Unix timestamp to a human-readable date string."""
+        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    
     def detect_directory(self, directory: str) -> Dict:
         """Detect and generate config for a directory."""
         config = {
+            # Directory-level metadata
             'name': '' if directory == '.' else os.path.basename(directory),
+            'curator': '',  # Person/org managing this collection
+            'source': '',  # Source organization/archive
+            'tags': [],  # Collection categories/themes
+            'license': '',  # Overall collection license
+
+            # Structure
             'files': [],
             'subdirs': []
         }
@@ -70,10 +111,27 @@ class EntryDetector:
             
             if os.path.isfile(full_path) and self.should_include_file(full_path, item):
                 file_info = {
+                    # File identification
                     'name': os.path.splitext(item)[0],
                     'filename': item,
+                    
+                    # File-specific metadata
+                    'description': '',  # Individual file description
                     'type': self.get_file_type(item),
-                    'md5': self.calculate_md5(full_path)
+                    'format': self.get_file_format(full_path),
+                    'size': os.path.getsize(full_path),
+                    'md5': self.calculate_md5(full_path),
+                    
+                    # Temporal metadata
+                    'date': '',  # Original creation/publication date
+                    'archived': self.format_timestamp(Path(full_path).stat().st_ctime),  # Human-readable timestamp
+                    
+                    # Source metadata
+                    'link': '',  # Original source URL
+                    'creator': '',  # Who created this specific file
+
+                    # Content-specific metadata
+                    'tags': [],  # File-specific tags
                 }
                 config['files'].append(file_info)
             
@@ -97,7 +155,7 @@ class EntryDetector:
         return None
     
     def merge_configs(self, old_config: Dict, new_config: Dict, directory: str) -> Dict:
-        """Merge old and new configs, tracking changes."""
+        """Merge old and new configs, ensuring new fields are added."""
         if old_config is None:
             return new_config
             
@@ -115,10 +173,12 @@ class EntryDetector:
                 if old_file['md5'] != new_file['md5']:
                     # File content changed
                     self.changes.append(f"Modified: {full_path}")
-                    merged_files.append(new_file)
-                else:
-                    # File unchanged, keep old metadata
-                    merged_files.append(old_file)
+                # Preserve existing metadata but add new fields
+                merged_file = new_file.copy()
+                for key in old_file:
+                    if key in old_file and old_file[key]:  # Only preserve non-empty values
+                        merged_file[key] = old_file[key]
+                merged_files.append(merged_file)
             else:
                 # New file
                 self.changes.append(f"Added: {full_path}")
@@ -128,11 +188,15 @@ class EntryDetector:
         for old_filename in old_files:
             if old_filename not in {f['filename'] for f in new_config['files']}:
                 self.changes.append(f"Deleted: {os.path.join(directory, old_filename)}")
+                # The file is not added to merged_files, effectively removing it from the config
         
-        # Merge configs
-        merged_config = old_config.copy()
+        # Merge directory-level configs
+        merged_config = new_config.copy()  # Start with new config to get any new fields
+        for key in old_config:
+            if key not in ['files', 'subdirs'] and old_config[key]:  # Preserve non-empty values
+                merged_config[key] = old_config[key]
+        
         merged_config['files'] = merged_files
-        merged_config['subdirs'] = new_config['subdirs']  # Update subdirs list
         
         return merged_config
     
@@ -148,8 +212,7 @@ class EntryDetector:
         final_config = self.merge_configs(old_config, new_config, directory)
         
         # Only save if there was no previous config or if there are changes
-        if old_config is None or self.changes:
-            self.save_config(directory, final_config)
+        self.save_config(directory, final_config)
         
         # Process subdirectories
         for subdir in final_config['subdirs']:

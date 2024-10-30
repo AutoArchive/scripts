@@ -143,7 +143,9 @@ def update_metadata(directory, gen_struct_path, template_path):
         if file_info.get('description') != '':
             logging.info(f"Skipping {file_info['filename']} as it already has description")
             continue  # Skip this file if all fields are non-empty
-        
+        if file_info.get('type') == 'webpage' or file_info.get('type') == 'other':
+            logging.info(f"Skipping {file_info['filename']} as it is an webpage or other")
+            continue
         print(f"\n\nProcessing file_info: {file_info}\n\n")
 
         file_path = os.path.join(directory, file_info['filename'])

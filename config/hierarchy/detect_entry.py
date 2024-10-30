@@ -10,7 +10,8 @@ import datetime
 class EntryDetector:
     def __init__(self):
         self.type_mapping = {
-            'document': ['.md', '.txt', '.doc', '.docx', '.pdf'],
+            'webpage': ['.html', '.md', '.htm'],
+            'document': ['.txt', '.doc', '.docx', '.pdf'],
             'image': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'],
             'video': ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'],
             'audio': ['.mp3', '.wav', '.ogg', '.m4a'],

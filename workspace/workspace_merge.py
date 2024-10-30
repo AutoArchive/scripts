@@ -187,24 +187,33 @@ def process_workspace():
             if should_skip_file(file_path, workspace_dir):
                 continue
 
-            # 2. Check MD5
+            # Check MD5
             file_md5 = calculate_md5(file_path)
             if check_file_exists_by_md5(file_md5):
                 print(f"Skipping {file_path}: MD5 already exists")
                 continue
             
-            # 3. AI classification
-            classification = get_ai_classification(file_path, gen_struct_path)
-            print("classification: ", classification)
-            
-            if classification:
-                suggested_path = classification['suggested_path']
-                target_path = Path(suggested_path)
-                # Create parent directories if they don't exist
-                target_path.mkdir(parents=True, exist_ok=True)
-                # Copy the file to the suggested location
-                shutil.copy2(file_path, target_path / file_path.name)
-                print(f"Moved {file_path.name} to {target_path}")
+            # AI classification with retry logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                classification = get_ai_classification(file_path, gen_struct_path)
+                print("classification: ", classification)
+                
+                if classification:
+                    suggested_path = classification['suggested_path']
+                    target_path = Path(suggested_path)
+                    
+                    # Check if suggested directory exists
+                    if not target_path.exists():
+                        print(f"Suggested path {target_path} does not exist, retrying...")
+                        if attempt == max_retries - 1:
+                            print(f"Failed to get valid path after {max_retries} attempts")
+                        continue
+                    
+                    # Copy the file to the suggested location
+                    shutil.copy2(file_path, target_path / file_path.name)
+                    print(f"Moved {file_path.name} to {target_path}")
+                    break
 
     # Rename workspace to old_workspace after processing
     if workspace_dir.exists():

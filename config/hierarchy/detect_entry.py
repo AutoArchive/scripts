@@ -74,7 +74,7 @@ class EntryDetector:
         if self.is_ignored(filepath):
             return False
         # ignore file in workspace
-        if 'workspace' in filepath:
+        if 'workspace' in filepath or 'workspace' in filename:
             return False
         return True
     
@@ -141,7 +141,7 @@ class EntryDetector:
                 }
                 config['files'].append(file_info)
             
-            elif os.path.isdir(full_path) and not item.startswith('.') and not self.is_ignored(full_path):
+            elif os.path.isdir(full_path) and not item.startswith('.') and not self.is_ignored(full_path) and 'workspace' not in item:
                 config['subdirs'].append(item)
         
         return config

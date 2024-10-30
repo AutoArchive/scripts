@@ -199,17 +199,12 @@ def process_workspace():
             
             if classification:
                 suggested_path = classification['suggested_path']
-                if suggested_path == "未知":
-                    # If no suitable directory found, move to root
-                    shutil.copy2(file_path, Path(".") / file_path.name)
-                    print(f"Moved {file_path.name} to root directory")
-                else:
-                    target_path = Path(suggested_path)
-                    # Create parent directories if they don't exist
-                    target_path.mkdir(parents=True, exist_ok=True)
-                    # Copy the file to the suggested location
-                    shutil.copy2(file_path, target_path / file_path.name)
-                    print(f"Moved {file_path.name} to {target_path}")
+                target_path = Path(suggested_path)
+                # Create parent directories if they don't exist
+                target_path.mkdir(parents=True, exist_ok=True)
+                # Copy the file to the suggested location
+                shutil.copy2(file_path, target_path / file_path.name)
+                print(f"Moved {file_path.name} to {target_path}")
 
     # Rename workspace to old_workspace after processing
     if workspace_dir.exists():

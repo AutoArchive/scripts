@@ -73,6 +73,9 @@ class EntryDetector:
             return False
         if self.is_ignored(filepath):
             return False
+        # ignore file in workspace
+        if 'workspace' in filepath:
+            return False
         return True
     
     def get_file_type(self, filename: str) -> str:

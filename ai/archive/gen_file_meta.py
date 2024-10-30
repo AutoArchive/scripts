@@ -15,14 +15,14 @@ def extract_text(file_path):
     ext = os.path.splitext(file_path)[1].lower()
     if ext in ['.txt', '.md']:
         with open(file_path, 'r', encoding='utf-8') as file:
-            return file.read()
+            return file.read()[:24000]
     elif ext == '.pdf':
         try:
             with pdfplumber.open(file_path) as pdf:
                 text = ''
                 for page in pdf.pages:
                     text += page.extract_text() or ''
-            return text[:2400]  # Limit to 2400 characters
+            return text[:24000]  # Limit to 2400 characters
         except Exception as e:
             print(f"Error extracting text from PDF: {e}")
             return "Error extracting text from PDF."
@@ -30,7 +30,7 @@ def extract_text(file_path):
         try:
             doc = Document(file_path)
             text = '\n'.join([para.text for para in doc.paragraphs])
-            return text[:2400]  # Limit to 2400 characters
+            return text[:24000]  # Limit to 2400 characters
         except Exception as e:
             print(f"Error extracting text from Word document: {e}")
             return "Error extracting text from Word document."

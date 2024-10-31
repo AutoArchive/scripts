@@ -39,6 +39,7 @@ def generate_categorized_file_toc(files):
         'image': [],
         'video': [],
         'audio': [],
+        'webpage': [],
         'other': []
     }
     
@@ -58,6 +59,7 @@ def generate_categorized_file_toc(files):
         'image': '🖼️ 图片',
         'video': '🎬 视频',
         'audio': '🎵 音频',
+        'webpage': '🌐 网页',
         'other': '📎 其他'
     }
     

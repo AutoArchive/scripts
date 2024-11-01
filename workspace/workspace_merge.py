@@ -175,6 +175,10 @@ def process_workspace():
         print("Workspace directory not found")
         return
 
+    # Create repeated directory if it doesn't exist
+    repeated_dir = Path("repeated").resolve()
+    repeated_dir.mkdir(exist_ok=True)
+
     gen_struct_path = '.github/scripts/ai/gen_struct.py'
 
     # Process each file in workspace recursively
@@ -190,7 +194,8 @@ def process_workspace():
             # Check MD5
             file_md5 = calculate_md5(file_path)
             if check_file_exists_by_md5(file_md5):
-                print(f"Skipping {file_path}: MD5 already exists")
+                print(f"Moving {file_path} to repeated directory: MD5 already exists")
+                shutil.copy2(file_path, repeated_dir / filename)
                 continue
             
             # AI classification with retry logic

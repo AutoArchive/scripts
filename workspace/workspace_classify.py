@@ -49,9 +49,9 @@ def calculate_md5(file_path):
             md5_hash.update(chunk)
     return md5_hash.hexdigest()
 
+
 def check_file_exists_by_md5(md5_hash):
-    """Check if file exists in md5.yml or evaluated.yml"""
-    # Check md5.yml
+    """Check if file exists in md5.yml"""
     try:
         with open('.github/md5.yml', 'r', encoding='utf-8') as f:
             md5_data = yaml.safe_load(f) or {}
@@ -62,7 +62,10 @@ def check_file_exists_by_md5(md5_hash):
     except FileNotFoundError:
         pass
 
-    # Check evaluated.yml
+    return False
+
+def check_file_in_evaluated(file_path, md5_hash):
+    """Check if file exists in evaluated.yml"""
     try:
         with open('.github/evaluated.yml', 'r', encoding='utf-8') as f:
             evaluated_data = yaml.safe_load(f) or {}
@@ -72,7 +75,7 @@ def check_file_exists_by_md5(md5_hash):
                 return True
     except FileNotFoundError:
         pass
-
+    
     return False
 
 def get_ai_classification(file_path, gen_struct_path):
@@ -218,6 +221,10 @@ def process_workspace():
         print("Workspace directory not found")
         return
 
+    # Create repeated directory if it doesn't exist
+    repeated_dir = Path("repeated").resolve()
+    repeated_dir.mkdir(exist_ok=True)
+
     gen_struct_path = '.github/scripts/ai/gen_struct.py'
 
     # Process each file in workspace recursively
@@ -232,8 +239,16 @@ def process_workspace():
 
             # Check MD5
             file_md5 = calculate_md5(file_path)
+            
+            # Skip if already in evaluated.yml
+            if check_file_in_evaluated(file_path, file_md5):
+                print(f"Skipping {file_path}: Already evaluated")
+                continue
+                
+            # Move to repeated if in md5.yml
             if check_file_exists_by_md5(file_md5):
-                print(f"Skipping {file_path}: MD5 already exists")
+                print(f"Moving {file_path} to repeated directory: MD5 already exists")
+                shutil.move(file_path, repeated_dir / filename)
                 continue
             
             # AI classification

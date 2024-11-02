@@ -77,6 +77,8 @@ class EntryDetector:
         # ignore file in workspace
         if 'workspace' in filepath or 'workspace' in filename:
             return False
+        if 'webpage_archive' in filepath or 'webpage_archive' in filename:
+            return False
         return True
     
     def get_file_type(self, filename: str) -> str:

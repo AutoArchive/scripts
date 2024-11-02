@@ -104,6 +104,10 @@ def process_directory(directory):
     if 'description' in config:
         toc_content.append(f"{config['description']}\n")
     
+    # add one line total count
+    total_count = count_files_recursive(directory)
+    toc_content.append(f"\n总计 {total_count} 篇内容\n\n")
+
     # Add subdirectories section
     if config.get('subdirs'):
         toc_content.append("### 📁 子目录\n")

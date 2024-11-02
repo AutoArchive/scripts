@@ -66,7 +66,7 @@ class EntryDetector:
     
     def should_include_file(self, filepath: str, filename: str) -> bool:
         """Check if a file should be included in config."""
-        if filename in {'README.md', 'LICENSE', 'LICENSE.md', '.gitignore', 'config.yml'}:
+        if filename in {'README.md', 'LICENSE', 'LICENSE.md', '.gitignore', 'config.yml', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md'}:
             return False
         if filename.startswith('.'):
             return False

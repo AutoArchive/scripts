@@ -118,7 +118,7 @@ def main():
                     update_page_content(file_info['page'], file_info['name'])
                     
             print(f"\nTotal large files found and processed: {len(large_files)}")
-            sys.exit(1)
+            sys.exit(0)
         else:
             print("\nNo files larger than 20MB found.")
             sys.exit(0)

@@ -152,9 +152,9 @@ def should_skip_file(file_path, workspace_dir):
         return True
 
     # Skip files larger than 10MB
-    if file_path.stat().st_size > 10 * 1024 * 1024:
-        print(f"Skipping {relative_path}: File too large")
-        return True
+    # if file_path.stat().st_size > 10 * 1024 * 1024:
+    #     print(f"Skipping {relative_path}: File too large")
+    #     return True
         
     # Skip system files
     if any(part.startswith('.') for part in relative_path.parts):

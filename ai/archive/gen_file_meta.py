@@ -139,11 +139,48 @@ def update_metadata(directory, gen_struct_path, template_path):
         return
 
     for file_info in config.get('files', []):
-        # Check if all metadata fields are non-empty
-        if file_info.get('description') != '':
-            logging.info(f"Skipping {file_info['filename']} as it already has description")
-            continue  # Skip this file if all fields are non-empty
-        if file_info.get('type') == 'webpage' or file_info.get('type') == 'other':
+        # Add check for page markdown file
+        page_file = file_info.get('page')
+        if page_file is None:
+            continue
+        page_path = os.path.join(directory, page_file)
+        if not os.path.exists(page_path):
+            print(f"error: no page file found for {file_info['filename']}")
+            exit(1)
+
+        # Try different encodings
+        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030']
+        page_content = None
+        used_encoding = None
+        
+        for encoding in encodings:
+            try:
+                with open(page_path, 'r', encoding=encoding) as f:
+                    page_content = f.read()
+                used_encoding = encoding
+                break  # If successful, break the loop
+            except UnicodeDecodeError:
+                continue
+                
+        if page_content is None:
+            logging.error(f"Failed to read {page_path} with any supported encoding")
+            continue
+
+        # If the file was read with a non-UTF-8 encoding, save it back as UTF-8
+        if used_encoding != 'utf-8':
+            try:
+                with open(page_path, 'w', encoding='utf-8') as f:
+                    f.write(page_content)
+                logging.info(f"Converted {page_path} from {used_encoding} to UTF-8")
+            except Exception as e:
+                logging.error(f"Failed to convert {page_path} to UTF-8: {e}")
+                continue
+
+        if '[Unknown description(update needed)]' not in page_content:
+            logging.info(f"Skipping {file_info['filename']} as its page doesn't need updating")
+            continue
+
+        if file_info['filename'].endswith('.html') or file_info.get('type') == 'other':
             logging.info(f"Skipping {file_info['filename']} as it is an webpage or other")
             continue
         print(f"\n\nProcessing file_info: {file_info}\n\n")
@@ -158,14 +195,25 @@ def update_metadata(directory, gen_struct_path, template_path):
         metadata = generate_metadata(file_path, gen_struct_path, template_path, additional_meta)
         
         if metadata:
-            file_info.update(metadata)
-            logging.info(f"Updated metadata for {file_info['filename']}")
-            print(f"\n\nUpdated metadata for {file_info['filename']}: {metadata}\n\n")
+            # Update the page markdown content
+            new_content = page_content.replace(
+                '[Unknown description(update needed)]',
+                metadata['description']
+            )
+            new_content = new_content.replace(
+                '[Unknown tags(update needed)]',
+                ', '.join(metadata['tags'])
+            )
+            new_content = new_content.replace(
+                '[Unknown date(update needed)]',
+                metadata['date']
+            )
 
-        # Save the config after processing each file
-        with open(config_path, 'w', encoding='utf-8') as f:
-            yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
-            print(f"\n\nSaved config for {file_info['filename']} to {config_path}\n\n")
+            # Write the updated content back to the page file
+            with open(page_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            logging.info(f"Updated page markdown for {file_info['filename']}")
+
 def main():
     gen_struct_path = '.github/scripts/ai/gen_struct.py'
     template_path = '.github/prompts/gen_file_meta.md.template'

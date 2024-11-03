@@ -123,24 +123,11 @@ class EntryDetector:
                     # File identification
                     'name': os.path.splitext(item)[0],
                     'filename': item,
-                    
-                    # File-specific metadata
-                    'description': '',  # Individual file description
+
                     'type': self.get_file_type(item),
                     'format': self.get_file_format(full_path),
                     'size': os.path.getsize(full_path),
                     'md5': self.calculate_md5(full_path),
-                    
-                    # Temporal metadata
-                    'date': '',  # Original creation/publication date
-                    'archived': self.format_timestamp(Path(full_path).stat().st_ctime),  # Human-readable timestamp
-                    
-                    # Source metadata
-                    'link': '',  # Original source URL
-                    'creator': '',  # Who created this specific file
-
-                    # Content-specific metadata
-                    'tags': [],  # File-specific tags
                 }
                 config['files'].append(file_info)
             
@@ -184,9 +171,9 @@ class EntryDetector:
                     self.changes.append(f"Modified: {full_path}")
                 # Preserve existing metadata but add new fields
                 merged_file = new_file.copy()
-                for key in old_file:
-                    if key in old_file and old_file[key]:  # Only preserve non-empty values
-                        merged_file[key] = old_file[key]
+                # for key in old_file:
+                #     if key in old_file and old_file[key]:  # Only preserve non-empty values
+                #         merged_file[key] = old_file[key]
                 merged_files.append(merged_file)
             else:
                 # New file

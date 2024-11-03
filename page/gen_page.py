@@ -8,22 +8,41 @@ def generate_metadata_page(file_info, directory):
     file_type = file_info['type']
     
     # Only generate pages for document, audio, and video files
-    if file_type not in ['document', 'audio', 'video']:
+    if file_type not in ['document', 'audio', 'video', 'webpage'] and not filename.endswith('.md'):
         print(f"Skipping {filename} because it's not a document, audio, or video file")
-        file_info['page'] = filename        
+        file_info['page'] = None   
         return
     
     # Check if the file is a markdown file
     if filename.endswith('.md'):
-        # Directly use the markdown file's path
-        file_info['page'] = filename
-        return
+        # check if the file already has a additional page
+        # read the file
+        if not file_info.get('page') or file_info['page'] != filename:
+            file_info['page'] = filename
+        with open(os.path.join(directory, filename), 'r', encoding='utf-8') as f:
+            content = f.read()
+        if '[Processed Page Metadata]' in content:
+            print(f"Skipping {filename} because it already has a additional page")
+            return
+        template_path = os.path.join('.github', 'templates', 'additional.md.template')
+    else:
+        # Read the template file
+        template_path = os.path.join('.github', 'templates', 'page.md.template')
     
-    # Read the template file
-    template_path = os.path.join('.github', 'templates', 'page.md.template')
     with open(template_path, 'r', encoding='utf-8') as template_file:
         template_content = template_file.read()
     
+    page_filename = f"{name}_page.md"
+    # if page exists, skip
+    page_path = os.path.join(directory, page_filename)
+    if os.path.exists(page_path):
+        print(f"Skipping {filename} because {page_path} already exists")
+        # check if the file_info['page'] is the same as page_filename
+        if file_info.get('page') != page_filename:
+            print(f"Updating {filename} because {page_path} already exists")
+            file_info['page'] = page_filename
+        return
+
     # Replace placeholders in the template with actual file information
     content = template_content.format(
         name=name or 'Unknown',
@@ -32,19 +51,22 @@ def generate_metadata_page(file_info, directory):
         format=file_info.get('format', 'Unknown') or 'Unknown',
         size=file_info.get('size', 'Unknown') or 'Unknown',
         md5=file_info.get('md5', 'Unknown') or 'Unknown',
-        archived=file_info.get('archived', 'Unknown') or 'Unknown',
-        description=file_info.get('description', 'No description available') or 'Unknown',
-        tags=', '.join(file_info.get('tags', [])) or 'Unknown',
-        date=file_info.get('date', 'Unknown') or 'Unknown',
-        link=file_info.get('link', 'No link available') or 'Unknown',
-        creator=file_info.get('creator', 'Unknown') or 'Unknown'
+        archived='[Unknown archived date(update needed)]',
+        description='[Unknown description(update needed)]',
+        tags='[Unknown tags(update needed)]',
+        date='[Unknown date(update needed)]',
+        link='[Unknown link(update needed)]',
+        creator='[Unknown creator(update needed)]'
     )
-    
-    # Write the content to a markdown file
-    page_filename = f"{name}_page.md"
-    page_path = os.path.join(directory, page_filename)
-    with open(page_path, 'w', encoding='utf-8') as f:
-        f.write(content)
+
+    if filename.endswith('.md'):
+        # add the content to the end of the file
+        with open(os.path.join(directory, filename), 'a', encoding='utf-8') as f:
+            f.write(content)
+    else:
+        # write the content to the new file
+        with open(page_path, 'w', encoding='utf-8') as f:
+            f.write(content)
     
     # Update the file_info with the page filename
     file_info['page'] = page_filename
@@ -53,7 +75,7 @@ def process_directory(directory):
     """Process a directory to generate metadata pages for non-image files."""
     config_path = os.path.join(directory, 'config.yml')
     if not os.path.exists(config_path):
-        print(f"Warning: No config.yml found in {directory}")
+        # print(f"Warning: No config.yml found in {directory}")
         return
     
     # Read config

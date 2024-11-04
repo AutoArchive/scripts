@@ -53,7 +53,20 @@ class EntryDetector:
         return md5_hash.hexdigest()
     
     def is_ignored(self, path: str) -> bool:
-        """Check if a path is ignored by git."""
+        """Check if a path is ignored by git or is in a submodule."""
+        # Check if path is in a submodule
+        try:
+            result = subprocess.run(
+                ['git', 'submodule', 'status', path],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return True
+        except subprocess.SubprocessError:
+            pass
+
+        # Check if path is git-ignored
         try:
             result = subprocess.run(
                 ['git', 'check-ignore', '-q', path],
@@ -77,7 +90,7 @@ class EntryDetector:
         # ignore file in workspace
         if 'workspace' in filepath or 'workspace' in filename:
             return False
-        if 'webpage_archive' in filepath or 'webpage_archive' in filename:
+        if 'webpage' in filepath or 'webpage' in filename:
             return False
         return True
     

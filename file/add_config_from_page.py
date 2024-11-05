@@ -1,3 +1,4 @@
+import datetime
 import os
 import yaml
 
@@ -12,16 +13,6 @@ def load_yaml(file_path):
 def save_yaml(file_path, data):
     with open(file_path, 'w', encoding='utf-8') as f:
         yaml.dump(data, f, allow_unicode=True, sort_keys=False)
-
-def find_link_in_files(visit_links_data, target_file):
-    """Search for MD5 hash in visit_links.yml content and return the link if found"""
-    for key, value in visit_links_data.items():
-        # print(key)
-        # print(target_file['filename'].replace('.html', '.md'))
-        if target_file['filename'] == key.replace('.html', '.md'):
-            return value.get('link')
-    print(f"No link found for {target_file['filename']}")
-    return None
 
 def update_files(root_dir):
 
@@ -48,7 +39,16 @@ def update_files(root_dir):
             for file in config_data['files']:
                 # Check if file has MD5 and page field
                 if file.get('page'):
-                    link = find_link_in_files(visit_links_data, file)
+                    related_record = visit_links_data.get(file['filename'].replace('.md', '.html'))
+                    if not related_record:
+                        print(f"No related record found for {file['filename']}")
+                        continue
+                    visited_date = related_record.get('visited_date')
+                    if not visited_date:
+                        print(f"No visited date found for {file['filename']}")
+                        # current time
+                        visited_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    link = related_record.get('link')
                     if link:
                         # Read and update the page file
                         page_path = os.path.join(root, file['page'])
@@ -62,6 +62,15 @@ def update_files(root_dir):
                                 with open(page_path, 'w', encoding='utf-8') as f:
                                     f.write(updated_content)
                                 print(f"Updated link for {file['name']} in {page_path}")
+                            if "[Unknown archived date(update needed)]" in content:
+                                # visited_date: '2024-11-02 06:51:12'
+                                print(f"Updating archived date for {file['name']} in {page_path}")
+                                updated_content = content.replace("[Unknown archived date(update needed)]", visited_date)
+                                with open(page_path, 'w', encoding='utf-8') as f:
+                                    f.write(updated_content)
+                                print(f"Updated archived date for {file['name']} in {page_path}")
+                else:
+                    print(f"No page field found for {file['name']}")
 
 if __name__ == "__main__":
     # Adjust these paths according to your project structure

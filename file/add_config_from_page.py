@@ -20,8 +20,12 @@ def update_files(root_dir):
     for root, dirs, files in os.walk(root_dir):
 
         if 'config.yml' in files:
+            visit_links_path = os.path.join(root, 'page.yml')
+            if not os.path.exists(visit_links_path):
+                print(f"Warning: page.yml not found in {root}")
+                continue
+
             try:
-                visit_links_path = os.path.join(root, 'page.yml')
                 visit_links_data = load_yaml(visit_links_path)
                 if not visit_links_data:
                     print("Failed to load page.yml")
@@ -37,6 +41,7 @@ def update_files(root_dir):
                 continue
 
             for file in config_data['files']:
+                # print(file)
                 # Check if file has MD5 and page field
                 if file.get('page'):
                     related_record = visit_links_data.get(file['filename'].replace('.md', '.html'))
@@ -70,7 +75,7 @@ def update_files(root_dir):
                                     f.write(updated_content)
                                 print(f"Updated archived date for {file['name']} in {page_path}")
                 else:
-                    print(f"No page field found for {file['name']}")
+                    print(f"No link field found for {file['name']}")
 
 if __name__ == "__main__":
     # Adjust these paths according to your project structure

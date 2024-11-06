@@ -63,13 +63,14 @@ def generate_metadata_page(file_info, directory):
         # add the content to the end of the file
         with open(os.path.join(directory, filename), 'a', encoding='utf-8') as f:
             f.write(content)
+        # Ensure markdown files do not have a separate page
+        file_info['page'] = filename
     else:
         # write the content to the new file
         with open(page_path, 'w', encoding='utf-8') as f:
             f.write(content)
-    
-    # Update the file_info with the page filename
-    file_info['page'] = page_filename
+        # Update the file_info with the page filename
+        file_info['page'] = page_filename
 
 def process_directory(directory):
     """Process a directory to generate metadata pages for non-image files."""

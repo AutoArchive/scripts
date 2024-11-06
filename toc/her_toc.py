@@ -85,6 +85,14 @@ def count_files_recursive(directory):
         subdir_path = os.path.join(directory, subdir)
         count += count_files_recursive(subdir_path)
     
+    # if xxx.conf, add size. list path because it's not in config.yml
+    for file in os.listdir(directory):
+        if file.endswith('.conf'):
+            # find the line start with size=
+            with open(os.path.join(directory, file), 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('size='):
+                        count += int(line.split('=')[1])
     return count
 
 def is_ignored(path: str) -> bool:
@@ -146,8 +154,26 @@ def process_directory(directory):
         for subdir in sorted(config['subdirs']):
             file_count = count_files_recursive(os.path.join(directory, subdir))
             toc_content.append(f"- [{subdir}]({subdir}) ({file_count} 篇内容)")
-        toc_content.append("")  # Add empty line after subdirs section
     
+    # if xxx.conf exists, add size
+    for file in os.listdir(directory):
+        if file.endswith('.conf'):
+            with open(os.path.join(directory, file), 'r', encoding='utf-8') as f:
+                size = 0
+                url = ""
+                for line in f:
+                    if line.startswith('size='):
+                        size = int(line.split('=')[1].strip())
+                    if line.startswith('url='):
+                        url = line.split('=')[1].strip()
+                if not url:
+                    print(f"Warning: {file} has no url")
+                if size == 0:
+                    print(f"Warning: {file} has no size")
+                toc_content.append(f"- [{file.replace('.conf', '')}]({url}) ({size} 篇内容)")
+    if config.get('subdirs'):
+        toc_content.append("")  # Add empty line after subdirs section
+
     # Add files section
     if config.get('files'):
         files_toc = generate_categorized_file_toc(config['files'])

@@ -2,6 +2,7 @@
 import os
 import yaml
 from pathlib import Path
+import subprocess  # Ensure subprocess is imported
 
 def get_template_path(dir_path):
     """Get template path for a specific directory if it exists."""
@@ -86,8 +87,39 @@ def count_files_recursive(directory):
     
     return count
 
+def is_ignored(path: str) -> bool:
+    if path == '.':
+        return False
+    """Check if a path is ignored by git or is in a submodule."""
+    # Check if path is in a submodule
+    try:
+        result = subprocess.run(
+            ['git', 'submodule', 'status', path],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return True
+    except subprocess.SubprocessError:
+        pass
+
+    # Check if path is git-ignored
+    try:
+        result = subprocess.run(
+            ['git', 'check-ignore', '-q', path],
+            capture_output=True,
+            text=True
+        )
+        return result.returncode == 0
+    except subprocess.SubprocessError:
+        return False
+
 def process_directory(directory):
     """Process a directory to generate README.md based on config.yml."""
+    if is_ignored(directory):
+        print(f"Skipping ignored directory: {directory}")
+        return
+
     config_path = os.path.join(directory, 'config.yml')
     if not os.path.exists(config_path):
         print(f"Warning: No config.yml found in {directory}")

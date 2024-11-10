@@ -55,6 +55,7 @@ def generate_metadata_page(file_info, directory):
         description='[Unknown description(update needed)]',
         tags='[Unknown tags(update needed)]',
         date='[Unknown date(update needed)]',
+        region='[Unknown region(update needed)]',
         link='[Unknown link(update needed)]',
         author='[Unknown author(update needed)]'
     )

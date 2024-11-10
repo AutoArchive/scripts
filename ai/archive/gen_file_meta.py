@@ -81,12 +81,13 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
             "description": {"type": "string"},
             "date": {"type": "string"},
             "author": {"type": "string"},
+            "region": {"type": "string"},
             "tags": {
                 "type": "array",
                 "items": {"type": "string"}
             }
         },
-        "required": ["description", "date", "author", "tags"],
+        "required": ["description", "date", "author", "region", "tags"],
         "additionalProperties": False
     }
 
@@ -212,6 +213,10 @@ def update_metadata(directory, gen_struct_path, template_path):
             new_content = new_content.replace(
                 '[Unknown author(update needed)]',
                 metadata['author']
+            )
+            new_content = new_content.replace(
+                '[Unknown region(update needed)]',
+                metadata['region']
             )
 
             # Write the updated content back to the page file

@@ -189,8 +189,8 @@ def update_metadata(directory, gen_struct_path, template_path):
 
         additional_meta = {
             'type': file_info.get('type', ''),
-            'format': file_info.get('format', ''),
-            'archived': file_info.get('archived', '')
+            'format': file_info.get('format', '')
+            # 'archived': file_info.get('archived', '')
         }
         metadata = generate_metadata(file_path, gen_struct_path, template_path, additional_meta)
         

@@ -186,9 +186,9 @@ class EntryDetector:
                     self.changes.append(f"Modified: {full_path}")
                 # Preserve existing metadata but add new fields
                 merged_file = new_file.copy()
-                # for key in old_file:
-                #     if key in old_file and old_file[key]:  # Only preserve non-empty values
-                #         merged_file[key] = old_file[key]
+                for key in old_file:
+                    if key in old_file and old_file[key]:  # Only preserve non-empty values
+                        merged_file[key] = old_file[key]
                 merged_files.append(merged_file)
             else:
                 # New file

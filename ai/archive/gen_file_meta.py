@@ -80,12 +80,13 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
         "properties": {
             "description": {"type": "string"},
             "date": {"type": "string"},
+            "author": {"type": "string"},
             "tags": {
                 "type": "array",
                 "items": {"type": "string"}
             }
         },
-        "required": ["description", "date", "tags"],
+        "required": ["description", "date", "author", "tags"],
         "additionalProperties": False
     }
 
@@ -207,6 +208,10 @@ def update_metadata(directory, gen_struct_path, template_path):
             new_content = new_content.replace(
                 '[Unknown date(update needed)]',
                 metadata['date']
+            )
+            new_content = new_content.replace(
+                '[Unknown author(update needed)]',
+                metadata['author']
             )
 
             # Write the updated content back to the page file

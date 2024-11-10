@@ -56,7 +56,7 @@ def generate_metadata_page(file_info, directory):
         tags='[Unknown tags(update needed)]',
         date='[Unknown date(update needed)]',
         link='[Unknown link(update needed)]',
-        creator='[Unknown creator(update needed)]'
+        author='[Unknown author(update needed)]'
     )
 
     if filename.endswith('.md'):

@@ -10,7 +10,7 @@ def generate_metadata_page(file_info, directory):
     # Only generate pages for document, audio, and video files
     if file_type not in ['document', 'audio', 'video', 'webpage'] and not filename.endswith('.md'):
         print(f"Skipping {filename} because it's not a document, audio, or video file")
-        file_info['page'] = None   
+        file_info['page'] = filename
         return
     
     # Check if the file is a markdown file

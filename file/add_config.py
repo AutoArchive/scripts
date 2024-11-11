@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import yaml
 
@@ -39,8 +40,10 @@ def update_files(root_dir, visit_links_path):
             for file in config_data['files']:
                 # Check if file has MD5 and page field
                 if file.get('md5') and file.get('page'):
-                    link = find_md5_in_visit_links(visit_links_data, file['md5'])
-                    if link:
+                    data = visit_links_data.get(file['md5'])
+                    if data:
+                        visited_date = data.get('visited_date')
+                        link = data.get('link')
                         # Read and update the page file
                         page_path = os.path.join(root, file['page'])
                         if os.path.exists(page_path):
@@ -52,7 +55,22 @@ def update_files(root_dir, visit_links_path):
                                 with open(page_path, 'w', encoding='utf-8') as f:
                                     f.write(updated_content)
                                 print(f"Updated link for {file['name']} in {page_path}")
-
+                            
+                            if "[Unknown archived date(update needed)]" in content:
+                                if not visited_date:
+                                    print(f"Warning: No visited date found for {file['name']}")
+                                    continue
+                                updated_content = content.replace("[Unknown archived date(update needed)]", visited_date)
+                                with open(page_path, 'w', encoding='utf-8') as f:
+                                    f.write(updated_content)
+                                print(f"Updated archived date for {file['name']} in {page_path}")
+                    else:
+                        if "[Unknown archived date(update needed)]" in content:
+                            # put today's date on it
+                            updated_content = content.replace("[Unknown archived date(update needed)]", datetime.now().strftime("%Y-%m-%d"))
+                            with open(page_path, 'w', encoding='utf-8') as f:
+                                f.write(updated_content)
+                            print(f"Updated archived date for {file['name']} in {page_path}")
 if __name__ == "__main__":
     # Adjust these paths according to your project structure
     root_directory = "."  # Start from current directory

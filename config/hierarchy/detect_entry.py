@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 import datetime
+import re  # Add this import at the top
 
 class EntryDetector:
     def __init__(self):
@@ -42,6 +43,12 @@ class EntryDetector:
             '.m4a': 'M4A Audio',
         }
         self.changes = []  # Track changes
+
+        # Load ignore list from digital.yml and compile regex patterns
+        with open('digital.yml', 'r', encoding='utf-8') as f:
+            digital_config = yaml.safe_load(f)
+        ignore_patterns = digital_config.get('ignore', [])
+        self.ignore_regexes = [re.compile(pattern) for pattern in ignore_patterns]
     
     def calculate_md5(self, filepath: str) -> str:
         """Calculate MD5 hash of a file."""
@@ -53,16 +60,15 @@ class EntryDetector:
         return md5_hash.hexdigest()
     
     def is_ignored(self, path: str) -> bool:
-        """Check if a path is ignored by git or is in a submodule."""
-        if 'workspace' in path:
-            print(f"Ignore: {path}")
-            return True
-        if 'webpage_archive' in path:
-            print(f"Ignore webpage_archive: {path}")
-            return True 
-        if 'website' in path:
-            print(f"Ignore website: {path}")
-            return True
+        """Check if a path matches any ignore pattern or is git-ignored."""
+        normalized_path = os.path.normpath(path)
+
+        # Check if any ignore regex matches the path
+        for regex in self.ignore_regexes:
+            if regex.search(normalized_path):
+                print(f"Ignore: {path} (matched pattern: {regex.pattern})")
+                return True
+
         # Check if path is git-ignored
         try:
             result = subprocess.run(

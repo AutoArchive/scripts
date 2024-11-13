@@ -72,59 +72,33 @@ def generate_categorized_file_toc(files):
     
     return "\n".join(toc)
 
-def count_files_recursive(directory):
-    """Count files in directory and its subdirectories using config.yml."""
-    config_path = os.path.join(directory, 'config.yml')
-    if not os.path.exists(config_path):
-        return 0
-        
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    
-    count = len(config.get('files', []))
-    for subdir in config.get('subdirs', []):
-        subdir_path = os.path.join(directory, subdir)
-        count += count_files_recursive(subdir_path)
-    
-    # Add counts from .conf files
-    for file in os.listdir(directory):
-        if file.endswith('.conf'):
-            with open(os.path.join(directory, file), 'r', encoding='utf-8') as f:
-                path = ""
-                for line in f:
-                    if line.startswith('path='):
-                        path = line.split('=')[1].strip()
-                        break
-                
-                if path:
-                    try:
-                        with open(path, 'r', encoding='utf-8') as readme_f:
-                            content = readme_f.read()
-                            match = re.search(r'总计\s+(\d+)\s+篇内容', content)
-                            if match:
-                                count += int(match.group(1))
-                            else:
-                                print(f"Warning: Could not find content count in {path}")
-                    except FileNotFoundError:
-                        print(f"Warning: README file not found at {path}")
-    
-    return count
+def load_ignore_patterns():
+    """
+    Load ignore patterns from digital.yml and compile them into regexes.
+    """
+    ignore_regexes = []
+    digital_yml_path = 'digital.yml'
+    if os.path.exists(digital_yml_path):
+        with open(digital_yml_path, 'r', encoding='utf-8') as f:
+            digital_config = yaml.safe_load(f)
+            ignore_patterns = digital_config.get('ignore', [])
+            ignore_regexes = [re.compile(pattern) for pattern in ignore_patterns]
+    return ignore_regexes
 
-def is_ignored(path: str) -> bool:
+def is_ignored(path: str, ignore_regexes) -> bool:
+    """
+    Check if a path is ignored by git or matches any ignore pattern.
+    """
     if path == '.':
         return False
-    """Check if a path is ignored by git or is in a submodule."""
-    # Check if path is in a submodule
-    try:
-        result = subprocess.run(
-            ['git', 'submodule', 'status', path],
-            capture_output=True,
-            text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
+
+    normalized_path = os.path.normpath(path)
+
+    # Check if any ignore regex matches the path
+    for regex in ignore_regexes:
+        if regex.search(normalized_path):
+            print(f"Ignore: {path} (matched pattern: {regex.pattern})")
             return True
-    except subprocess.SubprocessError:
-        pass
 
     # Check if path is git-ignored
     try:
@@ -137,45 +111,52 @@ def is_ignored(path: str) -> bool:
     except subprocess.SubprocessError:
         return False
 
-def process_conf_files(directory):
-    """Process .conf files in the directory and generate entries."""
-    conf_entries = []
-    for file in os.listdir(directory):
-        if file.endswith('.conf'):
-            with open(os.path.join(directory, file), 'r', encoding='utf-8') as f:
-                path = ""
-                url = ""
-                for line in f:
-                    if line.startswith('path='):
-                        path = line.split('=')[1].strip()
-                    if line.startswith('url='):
-                        url = line.split('=')[1].strip()
-                
-                if not url:
-                    print(f"Warning: {file} has no url")
-                if not path:
-                    print(f"Warning: {file} has no path")
-                    continue
+def load_independence_entries():
+    """Load independence entries from digital.yml."""
+    digital_yml_path = 'digital.yml'
+    if os.path.exists(digital_yml_path):
+        with open(digital_yml_path, 'r', encoding='utf-8') as f:
+            digital_config = yaml.safe_load(f)
+            return digital_config.get('independence', [])
+    return []
 
-                # Read the README.md file and extract the count
-                try:
-                    with open(path, 'r', encoding='utf-8') as readme_f:
-                        content = readme_f.read()
-                        match = re.search(r'总计\s+(\d+)\s+篇内容', content)
-                        if match:
-                            size = int(match.group(1))
-                            conf_entries.append(f"- [{file.replace('.conf', '')}]({url}) ({size} 篇内容)")
-                        else:
-                            print(f"Warning: Could not find content count in {path}")
-                except FileNotFoundError:
-                    print(f"Warning: README file not found at {path}")
-                    continue
+def process_independence_entries(ignore_regexes):
+    """Process independence entries from digital.yml and generate entries."""
+    entries = []
+    for entry in load_independence_entries():
+        path = entry.get('path', '')
+        url = entry.get('url', '')
+        name = entry.get('name', '')
+        
+        if not url:
+            print(f"Warning: Entry {name} has no url")
+            continue
+        if not path:
+            print(f"Warning: Entry {name} has no path")
+            continue
+        if not name:
+            print(f"Warning: Entry has no name")
+            continue
+
+        # Read the README.md file and extract the count
+        try:
+            with open(path, 'r', encoding='utf-8') as readme_f:
+                content = readme_f.read()
+                match = re.search(r'总计\s+(\d+)\s+篇内容', content)
+                if match:
+                    size = int(match.group(1))
+                    entries.append(f"- [{name}]({url}) ({size} 篇内容)")
+                else:
+                    print(f"Warning: Could not find content count in {path}")
+        except FileNotFoundError:
+            print(f"Warning: README file not found at {path}")
+            continue
     
-    return conf_entries
+    return entries
 
-def process_directory(directory):
+def process_directory(directory, ignore_regexes):
     """Process a directory to generate README.md based on config.yml."""
-    if is_ignored(directory):
+    if is_ignored(directory, ignore_regexes):
         print(f"Skipping ignored directory: {directory}")
         return
 
@@ -195,24 +176,28 @@ def process_directory(directory):
     if 'description' in config:
         toc_content.append(f"{config['description']}\n")
     
-    # add one line total count
-    total_count = count_files_recursive(directory)
+    # Add one line total count
+    total_count = count_files_recursive(directory, ignore_regexes)
     toc_content.append(f"\n总计 {total_count} 篇内容\n\n")
 
     # Add subdirectories section
     if config.get('subdirs'):
         toc_content.append("### 📁 子目录\n")
         for subdir in sorted(config['subdirs']):
-            file_count = count_files_recursive(os.path.join(directory, subdir))
+            subdir_path = os.path.join(directory, subdir)
+            if is_ignored(subdir_path, ignore_regexes):
+                continue
+            file_count = count_files_recursive(subdir_path, ignore_regexes)
             toc_content.append(f"- [{subdir}]({subdir}) ({file_count} 篇内容)")
-        toc_content.append("")  # Add empty line after subdirs section
+        toc_content.append("")
 
-    # Process .conf files
-    conf_entries = process_conf_files(directory)
-    if conf_entries:
-        toc_content.append("### 📚 独立档案库\n")
-        toc_content.extend(conf_entries)
-        toc_content.append("")  # Add empty line after conf entries
+    # Process independence entries (replacing .conf files)
+    if directory == '.':  # Only process independence entries in root directory
+        independence_entries = process_independence_entries(ignore_regexes)
+        if independence_entries:
+            toc_content.append("### 📚 独立档案库\n")
+            toc_content.extend(independence_entries)
+            toc_content.append("")
 
     # Add files section
     if config.get('files'):
@@ -243,11 +228,45 @@ def process_directory(directory):
     # Process subdirectories
     for subdir in config.get('subdirs', []):
         subdir_path = os.path.join(directory, subdir)
-        process_directory(subdir_path)
+        process_directory(subdir_path, ignore_regexes)
+
+def count_files_recursive(directory, ignore_regexes):
+    """Count files in directory and its subdirectories using config.yml."""
+    if is_ignored(directory, ignore_regexes):
+        return 0
+        
+    config_path = os.path.join(directory, 'config.yml')
+    if not os.path.exists(config_path):
+        return 0
+        
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    
+    count = len(config.get('files', []))
+    for subdir in config.get('subdirs', []):
+        subdir_path = os.path.join(directory, subdir)
+        count += count_files_recursive(subdir_path, ignore_regexes)
+    
+    # Add counts from independence entries if in root directory
+    if directory == '.':
+        for entry in load_independence_entries():
+            path = entry.get('path', '')
+            if path:
+                try:
+                    with open(path, 'r', encoding='utf-8') as readme_f:
+                        content = readme_f.read()
+                        match = re.search(r'总计\s+(\d+)\s+篇内容', content)
+                        if match:
+                            count += int(match.group(1))
+                except FileNotFoundError:
+                    print(f"Warning: README file not found at {path}")
+    
+    return count
 
 def update_project_readme():
     """Update README files throughout the project based on config.yml files."""
-    process_directory('.')
+    ignore_regexes = load_ignore_patterns()
+    process_directory('.', ignore_regexes)
     print("Table of contents generated successfully!")
 
 if __name__ == "__main__":

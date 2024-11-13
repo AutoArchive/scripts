@@ -54,18 +54,15 @@ class EntryDetector:
     
     def is_ignored(self, path: str) -> bool:
         """Check if a path is ignored by git or is in a submodule."""
-        # Check if path is in a submodule
-        try:
-            result = subprocess.run(
-                ['git', 'submodule', 'status', path],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return True
-        except subprocess.SubprocessError:
-            pass
-
+        if 'workspace' in path:
+            print(f"Ignore: {path}")
+            return True
+        if 'webpage_archive' in path:
+            print(f"Ignore webpage_archive: {path}")
+            return True 
+        if 'website' in path:
+            print(f"Ignore website: {path}")
+            return True
         # Check if path is git-ignored
         try:
             result = subprocess.run(
@@ -88,11 +85,6 @@ class EntryDetector:
         if filename.endswith('.conf'):  # Ignore files ending with .conf
             return False
         if self.is_ignored(filepath):
-            return False
-        # ignore file in workspace
-        if 'workspace' in filepath or 'workspace' in filename:
-            return False
-        if 'webpage' in filepath or 'webpage' in filename:
             return False
         return True
     
@@ -213,6 +205,9 @@ class EntryDetector:
     
     def process_directory_recursive(self, directory: str = '.'):
         """Process directory and its subdirectories recursively."""
+        if self.is_ignored(directory):
+            print(f"Ignore: {directory}")
+            return
         # Load existing config if any
         old_config = self.load_existing_config(directory)
         

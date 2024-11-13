@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 import yaml
+from ignore import load_ignore_patterns, is_ignored
 
 def load_yaml(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -22,6 +23,9 @@ def find_md5_in_visit_links(visit_links_data, target_md5):
     return None
 
 def update_files(root_dir, visit_links_path):
+    # Load ignore patterns
+    ignore_regexes = load_ignore_patterns()
+    
     # Load visit_links.yml
     visit_links_data = load_yaml(visit_links_path)
     if not visit_links_data:
@@ -30,7 +34,10 @@ def update_files(root_dir, visit_links_path):
 
     # Walk through directories
     for root, dirs, files in os.walk(root_dir):
-        if 'config.yml' in files:
+        # Skip ignored directories
+        dirs[:] = [d for d in dirs if not is_ignored(os.path.join(root, d), ignore_regexes)]
+        
+        if 'config.yml' in files and not is_ignored(os.path.join(root, 'config.yml'), ignore_regexes):
             config_path = os.path.join(root, 'config.yml')
             config_data = load_yaml(config_path)
             
@@ -38,6 +45,11 @@ def update_files(root_dir, visit_links_path):
                 continue
 
             for file in config_data['files']:
+                # Check if file path is ignored
+                page_path = os.path.join(root, file.get('page', ''))
+                if is_ignored(page_path, ignore_regexes):
+                    continue
+                    
                 # Check if file has MD5 and page field
                 if file.get('md5') and file.get('page'):
                     data = visit_links_data.get(file['md5'])
@@ -45,7 +57,6 @@ def update_files(root_dir, visit_links_path):
                         visited_date = data.get('visited_date')
                         link = data.get('link')
                         # Read and update the page file
-                        page_path = os.path.join(root, file['page'])
                         if os.path.exists(page_path):
                             with open(page_path, 'r', encoding='utf-8') as f:
                                 content = f.read()
@@ -71,6 +82,7 @@ def update_files(root_dir, visit_links_path):
                             with open(page_path, 'w', encoding='utf-8') as f:
                                 f.write(updated_content)
                             print(f"Updated archived date for {file['name']} in {page_path}")
+
 if __name__ == "__main__":
     # Adjust these paths according to your project structure
     root_directory = "."  # Start from current directory

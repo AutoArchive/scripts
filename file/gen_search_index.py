@@ -2,6 +2,7 @@ import os
 import re
 import yaml
 from ignore import load_ignore_patterns, is_ignored
+from datetime import datetime  # Add at top with other imports
 
 def load_yaml(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -15,6 +16,33 @@ def save_yaml(file_path, data):
     with open(file_path, 'w', encoding='utf-8') as f:
         yaml.dump(data, f, allow_unicode=True, sort_keys=False)
 
+# Add this function before extract_metadata_from_markdown
+def normalize_date(date_str):
+    if date_str is None or date_str == '未知' or not date_str:
+        return '未知'
+    
+    # Try parsing different formats
+    date_formats = [
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d',
+        '%Y-%m',
+        '%Y'
+    ]
+    
+    for fmt in date_formats:
+        try:
+            date_obj = datetime.strptime(str(date_str), fmt)
+            if fmt == '%Y':
+                return f"{date_obj.year}-01-01"
+            elif fmt == '%Y-%m':
+                return f"{date_str}-01"
+            return date_obj.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    
+    print(f"Warning: Invalid date format: {date_str}")
+    return '未知'
+
 def extract_metadata_from_markdown(content):
     metadata = {}
     
@@ -26,21 +54,24 @@ def extract_metadata_from_markdown(content):
         metadata['description'] = abstract_match.group(1).strip()
 
     # Extract table metadata
-    table_match = re.search(r'\| Attribute\s*\|\s*Value\s*\|([\s\S]*?)\n\n', content)
+    table_match = re.search(r'\| Attribute\s*\|\s*Value\s*\|\s*\n\|[-\s|]+\n((?:\|.*\|\s*\n)+)', content)    
     if table_match:
         table_content = table_match.group(1)
         rows = re.findall(r'\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|', table_content)
         for key, value in rows:
             key = key.strip().lower()
             value = value.strip()
-            if key in ['date', 'author', 'tags', 'original link', 'archived date']:
+            if key in ['region', 'date', 'author', 'tags', 'original link', 'archived date']:
                 if key == 'tags':
                     metadata['tags'] = [tag.strip() for tag in value.split(',')]
                 elif key == 'original link':
                     metadata['link'] = extract_markdown_link(value)
+                elif key in ['date', 'archived date']:
+                    metadata[key] = normalize_date(value)
                 else:
                     metadata[key] = value
-
+    else:
+        print("No table_match found " + content)
     return metadata
 
 def extract_markdown_link(markdown_text):
@@ -109,6 +140,7 @@ def update_files(root_dir, output_path):
                         'link': '未知',
                         'author': '未知',
                         'date': '未知',
+                        'region': '未知',
                         'tags': ['binary']
                     }
 

@@ -14,8 +14,21 @@ def extract_text(file_path):
     """Extract text from a file based on its type."""
     ext = os.path.splitext(file_path)[1].lower()
     if ext in ['.txt', '.md']:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return file.read()[:24000]
+        # Try different encodings
+        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030']
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as file:
+                    content = file.read()
+                    # If successful, convert to UTF-8 if needed
+                    if encoding != 'utf-8':
+                        content = content.encode('utf-8').decode('utf-8')
+                    return content[:24000]
+            except UnicodeDecodeError:
+                continue
+        # If all encodings fail
+        logging.error(f"Failed to read {file_path} with any supported encoding")
+        return "Error: Unable to decode file content."
     elif ext == '.pdf':
         try:
             with pdfplumber.open(file_path) as pdf:

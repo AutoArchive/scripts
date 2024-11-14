@@ -6,6 +6,9 @@ import tempfile
 import logging
 from docx import Document
 import pdfplumber
+from ignore import load_ignore_patterns, is_ignored
+
+ignore_patterns = load_ignore_patterns()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -243,6 +246,9 @@ def main():
     root_directory = '.'  # Start from the current directory
 
     for root, dirs, files in os.walk(root_directory):
+        if is_ignored(root, ignore_patterns):
+            logging.info(f"Ignoring directory {root}")
+            continue
         update_metadata(root, gen_struct_path, template_path)
 
 if __name__ == "__main__":

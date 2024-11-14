@@ -5,9 +5,12 @@ import subprocess
 import tempfile
 import logging
 from pathlib import Path
+from ignore import load_ignore_patterns, is_ignored
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+ignore_patterns = load_ignore_patterns()
 
 def get_directory_files(directory):
     logging.debug(f"Getting files from directory: {directory}")
@@ -149,6 +152,9 @@ def main():
 
     processed_count = 0
     for root, dirs, files in os.walk(root_directory):
+        if is_ignored(root, ignore_patterns):
+            logging.info(f"Ignoring directory {root}")
+            continue
         if 'config.yml' in files:
             update_directory_metadata(root, gen_struct_path, template_path)
             processed_count += 1

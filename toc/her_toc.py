@@ -17,9 +17,22 @@ def get_template_path(dir_path):
 def natural_sort_key(s):
     """Natural sort key function for sorting strings with numbers."""
     import re
+    
+    # Map of special numerals to regular numbers
+    numeral_map = {
+        '①': '1', '②': '2', '③': '3', '④': '4', '⑤': '5',
+        '⑥': '6', '⑦': '7', '⑧': '8', '⑨': '9', '⑩': '10'
+    }
+    
     def convert(text):
+        # Convert special numerals if present
+        if text in numeral_map:
+            return int(numeral_map[text])
         return int(text) if text.isdigit() else text.lower()
-    return [convert(c) for c in re.split('([0-9]+)', s)]
+    
+    # Split on both regular numbers and special numerals
+    pattern = '([0-9]+|[①②③④⑤⑥⑦⑧⑨⑩])'
+    return [convert(c) for c in re.split(pattern, s)]
 
 def generate_file_entry(file_info):
     """Generate markdown entry for a file based on its type."""

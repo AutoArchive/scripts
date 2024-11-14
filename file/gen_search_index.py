@@ -165,5 +165,5 @@ def update_files(root_dir, output_path):
 
 if __name__ == "__main__":
     root_directory = "."
-    output_path = ".github/search_index.yml"
+    output_path = "search_index.yml"
     update_files(root_directory, output_path)

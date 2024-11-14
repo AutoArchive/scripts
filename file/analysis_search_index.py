@@ -2,7 +2,7 @@ import yaml
 from datetime import datetime
 from collections import defaultdict
 
-def load_search_index(filepath='.github/search_index.yml'):
+def load_search_index(filepath='search_index.yml'):
     with open(filepath, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 

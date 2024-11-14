@@ -4,12 +4,12 @@ import yaml
 from ignore import load_ignore_patterns, is_ignored
 
 def load_yaml(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
-        try:
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
-        except yaml.YAMLError as e:
-            print(f"Error parsing {file_path}: {e}")
-            return None
+    except Exception as e:
+        print(f"Error parsing {file_path}: {e}")
+        return None
 
 def save_yaml(file_path, data):
     with open(file_path, 'w', encoding='utf-8') as f:
@@ -29,9 +29,8 @@ def update_files(root_dir, visit_links_path):
     # Load visit_links.yml
     visit_links_data = load_yaml(visit_links_path)
     if not visit_links_data:
-        print("Failed to load visit_links.yml")
-        return
-
+        print("Failed to load visit_links.yml - will still update unknown archived dates with today's date")
+    
     # Walk through directories
     for root, dirs, files in os.walk(root_dir):
         # Skip ignored directories
@@ -52,36 +51,45 @@ def update_files(root_dir, visit_links_path):
                     
                 # Check if file has MD5 and page field
                 if file.get('md5') and file.get('page'):
-                    data = visit_links_data.get(file['md5'])
-                    if data:
-                        visited_date = data.get('visited_date')
-                        link = data.get('link')
-                        # Read and update the page file
-                        if os.path.exists(page_path):
+                    # Read the page file content first
+                    if os.path.exists(page_path):
+                        try:    
                             with open(page_path, 'r', encoding='utf-8') as f:
                                 content = f.read()
+                        except Exception as e:
+                            print(f"Error reading {page_path}: {e}")
+                            continue
                             
-                            if "[Unknown link(update needed)]" in content:
-                                updated_content = content.replace("[Unknown link(update needed)]", link)
-                                with open(page_path, 'w', encoding='utf-8') as f:
-                                    f.write(updated_content)
-                                print(f"Updated link for {file['name']} in {page_path}")
-                            
+                        if visit_links_data:  # Only try to update from visit_links if data exists
+                            data = visit_links_data.get(file['md5'])
+                            if data:
+                                visited_date = data.get('visited_date')
+                                link = data.get('link')
+                                # Read and update the page file
+                                if os.path.exists(page_path):
+                                    with open(page_path, 'r', encoding='utf-8') as f:
+                                        content = f.read()
+                                    
+                                    if "[Unknown link(update needed)]" in content:
+                                        updated_content = content.replace("[Unknown link(update needed)]", link)
+                                        with open(page_path, 'w', encoding='utf-8') as f:
+                                            f.write(updated_content)
+                                        print(f"Updated link for {file['name']} in {page_path}")
+                                    
+                                    if "[Unknown archived date(update needed)]" in content:
+                                        if not visited_date:
+                                            print(f"Warning: No visited date found for {file['name']}")
+                                            continue
+                                        updated_content = content.replace("[Unknown archived date(update needed)]", visited_date)
+                                        with open(page_path, 'w', encoding='utf-8') as f:
+                                            f.write(updated_content)
+                                        print(f"Updated archived date for {file['name']} in {page_path}")
+                        else:
                             if "[Unknown archived date(update needed)]" in content:
-                                if not visited_date:
-                                    print(f"Warning: No visited date found for {file['name']}")
-                                    continue
-                                updated_content = content.replace("[Unknown archived date(update needed)]", visited_date)
+                                updated_content = content.replace("[Unknown archived date(update needed)]", datetime.now().strftime("%Y-%m-%d"))
                                 with open(page_path, 'w', encoding='utf-8') as f:
                                     f.write(updated_content)
                                 print(f"Updated archived date for {file['name']} in {page_path}")
-                    else:
-                        if "[Unknown archived date(update needed)]" in content:
-                            # put today's date on it
-                            updated_content = content.replace("[Unknown archived date(update needed)]", datetime.now().strftime("%Y-%m-%d"))
-                            with open(page_path, 'w', encoding='utf-8') as f:
-                                f.write(updated_content)
-                            print(f"Updated archived date for {file['name']} in {page_path}")
 
 if __name__ == "__main__":
     # Adjust these paths according to your project structure

@@ -4,6 +4,7 @@ import yaml
 from pathlib import Path
 import subprocess  # Ensure subprocess is imported
 import re
+import requests  # Add this import at the top
 
 def get_template_path(dir_path):
     """Get template path for a specific directory if it exists."""
@@ -120,6 +121,24 @@ def load_independence_entries():
             return digital_config.get('independence', [])
     return []
 
+def read_file_content(path):
+    """Read file content from local path or remote URL."""
+    if path.startswith(('http://', 'https://')):
+        try:
+            response = requests.get(path)
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            print(f"Warning: Failed to fetch remote content from {path}: {e}")
+            return None
+    else:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            print(f"Warning: File not found at {path}")
+            return None
+
 def process_independence_entries(ignore_regexes):
     """Process independence entries from digital.yml and generate entries."""
     entries = []
@@ -138,19 +157,15 @@ def process_independence_entries(ignore_regexes):
             print(f"Warning: Entry has no name")
             continue
 
-        # Read the README.md file and extract the count
-        try:
-            with open(path, 'r', encoding='utf-8') as readme_f:
-                content = readme_f.read()
-                match = re.search(r'总计\s+(\d+)\s+篇内容', content)
-                if match:
-                    size = int(match.group(1))
-                    entries.append(f"- [{name}]({url}) ({size} 篇内容)")
-                else:
-                    print(f"Warning: Could not find content count in {path}")
-        except FileNotFoundError:
-            print(f"Warning: README file not found at {path}")
-            continue
+        # Read the README.md file content
+        content = read_file_content(path)
+        if content:
+            match = re.search(r'总计\s+(\d+)\s+篇内容', content)
+            if match:
+                size = int(match.group(1))
+                entries.append(f"- [{name}]({url}) ({size} 篇内容)")
+            else:
+                print(f"Warning: Could not find content count in {path}")
     
     return entries
 
@@ -252,14 +267,11 @@ def count_files_recursive(directory, ignore_regexes):
         for entry in load_independence_entries():
             path = entry.get('path', '')
             if path:
-                try:
-                    with open(path, 'r', encoding='utf-8') as readme_f:
-                        content = readme_f.read()
-                        match = re.search(r'总计\s+(\d+)\s+篇内容', content)
-                        if match:
-                            count += int(match.group(1))
-                except FileNotFoundError:
-                    print(f"Warning: README file not found at {path}")
+                content = read_file_content(path)
+                if content:
+                    match = re.search(r'总计\s+(\d+)\s+篇内容', content)
+                    if match:
+                        count += int(match.group(1))
     
     return count
 

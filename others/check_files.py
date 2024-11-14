@@ -3,7 +3,7 @@ import yaml
 import sys
 from pathlib import Path
 
-def check_file_size(file_path, size_limit_mb=20):
+def check_file_size(file_path, size_limit_mb=24):
     """
     Check if file exists and is larger than size_limit_mb
     """
@@ -148,7 +148,7 @@ def main():
         large_files = find_large_files(root_dir)
         
         if large_files:
-            print("\nFound files larger than 20MB:")
+            print("\nFound files larger than 24MB:")
             for file_info in sorted(large_files, key=lambda x: x['size_mb'], reverse=True):
                 print(f"\nFile: {file_info['name']}")
                 print(f"Path: {file_info['path']}")

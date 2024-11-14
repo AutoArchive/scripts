@@ -6,7 +6,7 @@ def get_pdf_size_mb(file_path):
     """Return the size of PDF file in megabytes"""
     return os.path.getsize(file_path) / (1024 * 1024)
 
-def split_pdf(input_path, output_dir=None, max_size_mb=25):
+def split_pdf(input_path, output_dir=None, max_size_mb=20):
     """
     Split a PDF file into multiple files if it exceeds the maximum size.
     
@@ -71,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser(description='Split large PDF files into smaller parts')
     parser.add_argument('input_pdf', help='Path to the input PDF file')
     parser.add_argument('-o', '--output-dir', help='Output directory (default: same as input file)')
-    parser.add_argument('-s', '--max-size', type=int, default=25,
+    parser.add_argument('-s', '--max-size', type=int, default=20,
                         help='Maximum size for each split file in MB (default: 25)')
     
     args = parser.parse_args()

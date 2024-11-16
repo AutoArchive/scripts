@@ -151,19 +151,18 @@ def main():
         # Find all config files and extract MD5 information
         md5_catalog = find_config_files(root_dir, ignore_regexes, args.max_depth)
 
-        # Check for duplicates before generating catalog
-        md5_counts = {}
-        md5_first_occurrence = {}
+        # Modified duplicate checking and removal logic
+        md5_to_files = {}
         duplicates_to_remove = set()
 
+        # First pass: collect all files with same MD5
         for filename, info in md5_catalog.items():
             md5_hash = info['md5']
-            if md5_hash in md5_first_occurrence:
-                md5_counts[md5_hash] = md5_counts.get(md5_hash, 0) + 1
-                if args.remove_duplicates:
-                    duplicates_to_remove.add(filename)
+            if md5_hash in md5_to_files:
+                md5_to_files[md5_hash].append(filename)
+                duplicates_to_remove.add(filename)
             else:
-                md5_first_occurrence[md5_hash] = filename
+                md5_to_files[md5_hash] = [filename]
 
         # Remove duplicates if requested
         if args.remove_duplicates:
@@ -172,7 +171,7 @@ def main():
                 del md5_catalog[duplicate]
                 print(f"Removed duplicate file: {duplicate}")
 
-        has_duplicates = any(count > 1 for count in md5_counts.values())
+        has_duplicates = len(duplicates_to_remove) > 0
         if has_duplicates and args.fail_on_duplicates and not args.remove_duplicates:
             print("Error: Duplicate MD5 hashes found. Exiting.")
             sys.exit(1)

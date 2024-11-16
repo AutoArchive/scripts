@@ -17,8 +17,8 @@ def extract_text(file_path):
     """Extract text from a file based on its type."""
     ext = os.path.splitext(file_path)[1].lower()
     if ext in ['.txt', '.md']:
-        # Try different encodings
-        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030']
+        # Try different encodings, add utf-16le
+        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'utf-16le']
         for encoding in encodings:
             try:
                 with open(file_path, 'r', encoding=encoding) as file:

@@ -138,6 +138,8 @@ def main():
                             help='Maximum directory depth to search (default: 2)')
         parser.add_argument('--fail-on-duplicates', action='store_true',
                             help='Exit with error if duplicate MD5 hashes are found')
+        parser.add_argument('--remove-duplicates', action='store_true',
+                            help='Remove duplicate files (keeps the first occurrence)')
         args = parser.parse_args()
 
         root_dir = "./"
@@ -151,11 +153,27 @@ def main():
 
         # Check for duplicates before generating catalog
         md5_counts = {}
-        for info in md5_catalog.values():
-            md5_counts[info['md5']] = md5_counts.get(info['md5'], 0) + 1
+        md5_first_occurrence = {}
+        duplicates_to_remove = set()
+
+        for filename, info in md5_catalog.items():
+            md5_hash = info['md5']
+            if md5_hash in md5_first_occurrence:
+                md5_counts[md5_hash] = md5_counts.get(md5_hash, 0) + 1
+                if args.remove_duplicates:
+                    duplicates_to_remove.add(filename)
+            else:
+                md5_first_occurrence[md5_hash] = filename
+
+        # Remove duplicates if requested
+        if args.remove_duplicates:
+            for duplicate in duplicates_to_remove:
+                os.remove(md5_catalog[duplicate]['path'])
+                del md5_catalog[duplicate]
+                print(f"Removed duplicate file: {duplicate}")
 
         has_duplicates = any(count > 1 for count in md5_counts.values())
-        if has_duplicates and args.fail_on_duplicates:
+        if has_duplicates and args.fail_on_duplicates and not args.remove_duplicates:
             print("Error: Duplicate MD5 hashes found. Exiting.")
             sys.exit(1)
 

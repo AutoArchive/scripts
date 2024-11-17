@@ -1,5 +1,6 @@
 import os
 import shutil
+import argparse
 
 def copy_small_files(source_dir, dest_dir, size_limit_mb=1):
     # Convert MB to bytes
@@ -30,17 +31,20 @@ def copy_small_files(source_dir, dest_dir, size_limit_mb=1):
                     # copy the page file
                     page_file = file.replace('.txt', '_page.md')
                     source_page_path = os.path.join(root, page_file)
-                    shutil.copy2(source_page_path, dest_path)
-
-                    # remove the original file
+                    if os.path.exists(source_page_path):
+                        shutil.copy2(source_page_path, dest_path)
+                        os.remove(source_page_path)
+                    
+                    # Remove the original txt file
                     os.remove(source_path)
-                    os.remove(source_page_path)
-
                     print(f"Copied: {source_path} -> {dest_path}")
 
 if __name__ == "__main__":
-    # Example usage
-    source_directory = "txt下载"  # Source directory path
-    destination_directory = "未分类中短篇"  # Destination directory path
+    parser = argparse.ArgumentParser(description='Copy small files to a new directory')
+    parser.add_argument('--source', default='workspace', help='Source directory path')
+    parser.add_argument('--dest', default='workspace_short', help='Destination directory path')
+    parser.add_argument('--size', type=float, default=1, help='Size limit in MB')
     
-    copy_small_files(source_directory, destination_directory)
+    args = parser.parse_args()
+    
+    copy_small_files(args.source, args.dest, args.size)

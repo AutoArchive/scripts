@@ -28,15 +28,36 @@ def add_search_exclude(directory):
             new_lines = []
             title_found = False
             
-            # Process lines to add search exclude after first title
+            # Process lines to ensure first heading is single # and add search exclude
+            first_heading = True
             for line in lines:
-                new_lines.append(line)
-                if not title_found and line.startswith('#') and not line.startswith('##'):
+                if first_heading:
+                    # If first heading starts with more than one #, convert to single #
+                    if line.startswith('##'):
+                        # Count leading #s and get the title text
+                        heading_text = line.lstrip('#').strip()
+                        new_lines.append(f'# {heading_text}')
+                    else:
+                        # add # to the first heading
+                        new_lines.append(f'# {line}')
+                elif line.startswith('##') and not line.startswith('###') and '## 摘要与附加信息' not in line:
+                    # Check if data-search-exclude is already present
+                    if '{ data-search-exclude }' not in line:
+                        new_lines.append(f'{line} {{ data-search-exclude }}')
+                    else:
+                        new_lines.append(line)
+                else:
+                    new_lines.append(line)
+    
+                # Add the search exclude marker after the first title
+                if not title_found and first_heading:
                     new_lines.append('')  # Add blank line
                     new_lines.append('## 正文 { data-search-exclude }')
                     new_lines.append('')  # Add blank line
                     title_found = True
-            
+                
+                first_heading = False
+
             # Write modified content back to file
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(new_lines))

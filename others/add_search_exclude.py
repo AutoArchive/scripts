@@ -18,10 +18,6 @@ def add_search_exclude(directory):
             file_path = os.path.join(directory, filename)
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
-            # Skip if file already has search exclude
-            if 'data-search-exclude' in content:
-                continue
                 
             # Split content into lines
             lines = content.split('\n')
@@ -37,9 +33,11 @@ def add_search_exclude(directory):
                         # Count leading #s and get the title text
                         heading_text = line.lstrip('#').strip()
                         new_lines.append(f'# {heading_text}')
-                    else:
+                    elif not line.startswith('#'):
                         # add # to the first heading
                         new_lines.append(f'# {line}')
+                    else:
+                        new_lines.append(line)
                 elif line.startswith('##') and not line.startswith('###') and '## 摘要与附加信息' not in line:
                     # Check if data-search-exclude is already present
                     if '{ data-search-exclude }' not in line:
@@ -50,7 +48,7 @@ def add_search_exclude(directory):
                     new_lines.append(line)
     
                 # Add the search exclude marker after the first title
-                if not title_found and first_heading:
+                if not title_found and first_heading and '正文 { data-search-exclude }' not in content:
                     new_lines.append('')  # Add blank line
                     new_lines.append('## 正文 { data-search-exclude }')
                     new_lines.append('')  # Add blank line

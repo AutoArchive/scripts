@@ -16,13 +16,7 @@ def read_file_content(path):
         except requests.RequestException as e:
             print(f"Warning: Failed to fetch remote content from {path}: {e}")
             return None
-    else:
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                return f.read()
-        except FileNotFoundError:
-            print(f"Warning: File not found at {path}")
-            return None
+    return None  # Remove local file reading since we only want remote files
 
 def load_independence_entries():
     """Load independence entries from digital.yml."""
@@ -33,6 +27,21 @@ def load_independence_entries():
             return digital_config.get('independence', [])
     return []
 
+def get_search_index_count(base_url):
+    """Get entry count from search_index.yml at the given base URL."""
+    search_index_url = f"{base_url.rstrip('/')}/search_index.yml"
+    content = read_file_content(search_index_url)
+    print(f"Search index content: {search_index_url}")
+    if content:
+        try:
+            index_data = yaml.safe_load(content)
+            # Count the number of entries in the search index
+            # number of keys in the index_data dictionary
+            return len(index_data.keys())
+        except yaml.YAMLError as e:
+            print(f"Warning: Failed to parse search_index.yml from {search_index_url}: {e}")
+    return 0
+
 def process_independence_to_json():
     """Process independence entries and generate JSON files for each entry."""
     entries = load_independence_entries()
@@ -42,37 +51,27 @@ def process_independence_to_json():
     all_entries = []
     
     for entry in entries:
-        path = entry.get('path', '')
         url = entry.get('url', '')
         name = entry.get('name', '')
         
-        if not all([url, path, name]):
+        if not all([url, name]):
             print(f"Warning: Missing required fields for entry {name}")
             continue
 
-        content = read_file_content(path)
-        if content:
-            match = re.search(r'总计\s+(\d+)\s+篇内容', content)
-            size = int(match.group(1)) if match else 0
+        # Get count from search_index.yml instead of local file
+        size = get_search_index_count(url)
             
-            entry_data = {
-                'name': name,
-                'url': url,
-                'path': path,
-                'size': size,
-                'last_updated': None  # 可以在这里添加更新时间
-            }
+        entry_data = {
+            'name': name,
+            'url': url,
+            'size': size,
+            'last_updated': None
+        }
             
-            # 为每个条目生成单独的 JSON 文件
-            # safe_name = re.sub(r'[^\w\-_]', '_', name)
-            # entry_file = output_dir / f'{safe_name}.json'
-            # with open(entry_file, 'w', encoding='utf-8') as f:
-            #     json.dump(entry_data, f, ensure_ascii=False, indent=2)
-            
-            all_entries.append(entry_data)
-            print(f"Generated JSON for {name}")
+        all_entries.append(entry_data)
+        print(f"Generated JSON for {name} with {size} entries")
     
-    # 生成包含所有条目的总文件
+    # Generate the combined JSON file
     with open('independence_repo.json', 'w', encoding='utf-8') as f:
         json.dump(all_entries, f, ensure_ascii=False, indent=2)
     

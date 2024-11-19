@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess  # Ensure subprocess is imported
 import re
 import requests  # Add this import at the top
+import json
 
 def get_template_path(dir_path):
     """Get template path for a specific directory if it exists."""
@@ -153,34 +154,31 @@ def read_file_content(path):
             return None
 
 def process_independence_entries(ignore_regexes):
-    """Process independence entries from digital.yml and generate entries."""
+    """Process independence entries from independence_repo.json."""
     entries = []
-    for entry in load_independence_entries():
-        path = entry.get('path', '')
-        url = entry.get('url', '')
-        name = entry.get('name', '')
-        
-        if not url:
-            print(f"Warning: Entry {name} has no url")
-            continue
-        if not path:
-            print(f"Warning: Entry {name} has no path")
-            continue
-        if not name:
-            print(f"Warning: Entry has no name")
-            continue
-
-        # Read the README.md file content
-        content = read_file_content(path)
-        if content:
-            match = re.search(r'总计\s+(\d+)\s+篇内容', content)
-            if match:
-                size = int(match.group(1))
-                entries.append(f"- [{name}]({url}) ({size} 篇内容)")
-            else:
-                print(f"Warning: Could not find content count in {path}")
+    json_path = 'independence_repo.json'
     
-    return entries
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            independence_data = json.loads(f.read())
+            
+        for entry in independence_data:
+            name = entry.get('name', '')
+            url = entry.get('url', '')
+            size = entry.get('size', 0)
+            
+            if name and url and size:
+                entries.append(f"- [{name}: {url}]({url}) ({size} 篇内容)")
+            else:
+                print(f"Warning: Invalid entry data in independence_repo.json")
+                
+        return entries
+    except FileNotFoundError:
+        print(f"Warning: independence_repo.json not found")
+        return []
+    except json.JSONDecodeError:
+        print(f"Warning: Failed to parse independence_repo.json")
+        return []
 
 def process_directory(directory, ignore_regexes):
     """Process a directory to generate README.md based on config.yml."""
@@ -223,7 +221,7 @@ def process_directory(directory, ignore_regexes):
     if directory == '.':  # Only process independence entries in root directory
         independence_entries = process_independence_entries(ignore_regexes)
         if independence_entries:
-            toc_content.append("### 📚 独立档案库\n")
+            toc_content.append("### 📚 独立档案库与网站\n")
             toc_content.extend(independence_entries)
             toc_content.append("")
 

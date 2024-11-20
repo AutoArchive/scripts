@@ -65,6 +65,7 @@ def process_independence_to_json():
             'name': name,
             'url': url,
             'size': size,
+            'description': entry.get('description', ''),
             'last_updated': None
         }
             

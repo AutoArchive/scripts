@@ -28,15 +28,25 @@ def load_independence_entries():
     return []
 
 def get_search_index_count(base_url):
-    """Get entry count from search_index.yml at the given base URL."""
+    """Get entry count from search_index.yml at the given base URL and save locally."""
     search_index_url = f"{base_url.rstrip('/')}/search_index.yml"
     content = read_file_content(search_index_url)
     print(f"Search index content: {search_index_url}")
     if content:
         try:
+            # Create directory if it doesn't exist
+            save_dir = Path('.search_index')
+            save_dir.mkdir(exist_ok=True)
+            
+            # Extract domain name from URL
+            domain = re.search(r'https?://([^/]+)', base_url).group(1)
+            save_path = save_dir / f"{domain}.yml"
+            
+            # Save the content
+            with open(save_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
             index_data = yaml.safe_load(content)
-            # Count the number of entries in the search index
-            # number of keys in the index_data dictionary
             return len(index_data.keys())
         except yaml.YAMLError as e:
             print(f"Warning: Failed to parse search_index.yml from {search_index_url}: {e}")

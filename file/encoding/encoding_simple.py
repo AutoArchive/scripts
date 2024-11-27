@@ -16,6 +16,14 @@ def convert_to_utf8(directory: str):
                 continue
 
             file_path = os.path.join(root, filename)
+                        # First check if already UTF-8
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    file.read()
+                    print(f"Skipping {file_path} - already UTF-8")
+                    continue
+            except UnicodeDecodeError:
+                pass  # Not UTF-8, proceed with conversion
             
             # Detect original encoding
             original_encoding = detect_encoding(file_path)

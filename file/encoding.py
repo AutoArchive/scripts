@@ -17,30 +17,31 @@ def convert_to_utf8(directory: str):
 
             file_path = os.path.join(root, filename)
             
-            # Detect original encoding
-            original_encoding = detect_encoding(file_path)
-            if original_encoding is None:
-                print(f"Warning: Could not detect encoding for {file_path}")
-                continue
-                
+            # Skip if already UTF-8
             try:
-                # Read content with detected encoding
-                with open(file_path, 'r', encoding=original_encoding) as file:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    file.read()
+                    print(f"Skipping {file_path} - already UTF-8")
+                    continue
+            except UnicodeDecodeError:
+                pass
+
+            # Detect and convert
+            original_encoding = detect_encoding(file_path)
+            try:
+                # Read raw bytes
+                with open(file_path, 'rb') as file:
                     content = file.read()
+                
+                # Decode with errors='ignore' to skip problematic characters
+                text = content.decode(original_encoding, errors='ignore')
                 
                 # Write content in UTF-8
                 with open(file_path, 'w', encoding='utf-8') as file:
-                    file.write(content)
+                    file.write(text)
                 
                 print(f"Converted {file_path} from {original_encoding} to UTF-8")
                 
-                # Rename if contains spaces
-                if ' ' in filename:
-                    new_filename = filename.replace(' ', '_')
-                    new_file_path = os.path.join(root, new_filename)
-                    os.rename(file_path, new_file_path)
-                    print(f"Renamed: {file_path} -> {new_file_path}")
-                    
             except Exception as e:
                 print(f"Error processing {file_path}: {str(e)}")
 

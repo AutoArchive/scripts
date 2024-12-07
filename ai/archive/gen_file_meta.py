@@ -8,7 +8,8 @@ from docx import Document
 import pdfplumber
 from ignore import load_ignore_patterns, is_ignored
 import docx2txt
-from multiprocessing import Pool, cpu_count
+import concurrent.futures
+from typing import List, Dict, Any
 
 ignore_patterns = load_ignore_patterns()
 
@@ -151,10 +152,95 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
         os.unlink(temp_output_path)
         os.unlink(schema_file)
 
-def update_metadata(args):
-    """Modified version of update_metadata that accepts a tuple of arguments."""
-    directory, gen_struct_path, template_path = args
+def process_single_file(args: tuple) -> None:
+    """Process a single file with its metadata."""
+    directory, file_info, gen_struct_path, template_path = args
     
+    page_file = file_info.get('page')
+    if page_file is None:
+        return
+        
+    page_path = os.path.join(directory, page_file)
+    if not os.path.exists(page_path):
+        print(f"error: no page file found for {file_info['filename']}")
+        return
+
+    # Try different encodings
+    encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030']
+    page_content = None
+    used_encoding = None
+    
+    for encoding in encodings:
+        try:
+            with open(page_path, 'r', encoding=encoding) as f:
+                page_content = f.read()
+            used_encoding = encoding
+            break  # If successful, break the loop
+        except UnicodeDecodeError:
+            continue
+                
+    if page_content is None:
+        logging.error(f"Failed to read {page_path} with any supported encoding")
+        return
+
+    # If the file was read with a non-UTF-8 encoding, save it back as UTF-8
+    if used_encoding != 'utf-8':
+        try:
+            with open(page_path, 'w', encoding='utf-8') as f:
+                f.write(page_content)
+            logging.info(f"Converted {page_path} from {used_encoding} to UTF-8")
+        except Exception as e:
+            logging.error(f"Failed to convert {page_path} to UTF-8: {e}")
+            return
+
+    if '[Unknown description(update needed)]' not in page_content:
+        logging.info(f"Skipping {file_info['filename']} as its page doesn't need updating")
+        return
+
+    if file_info['filename'].endswith('.html') or file_info.get('type') == 'other':
+        logging.info(f"Skipping {file_info['filename']} as it is an webpage or other")
+        return
+    print(f"\n\nProcessing file_info: {file_info}\n\n")
+
+    file_path = os.path.join(directory, file_info['filename'])
+
+    additional_meta = {
+        'type': file_info.get('type', ''),
+        'format': file_info.get('format', '')
+    }
+    
+    metadata = generate_metadata(file_path, gen_struct_path, template_path, additional_meta)
+
+    if metadata:
+        # Update the page markdown content
+        new_content = page_content.replace(
+            '[Unknown description(update needed)]',
+            metadata['description']
+        )
+        new_content = new_content.replace(
+            '[Unknown tags(update needed)]',
+            ', '.join(metadata['tags'])
+        )
+        new_content = new_content.replace(
+            '[Unknown date(update needed)]',
+            metadata['date']
+        )
+        new_content = new_content.replace(
+            '[Unknown author(update needed)]',
+            metadata['author']
+        )
+        new_content = new_content.replace(
+            '[Unknown region(update needed)]',
+            metadata['region']
+        )
+
+        # Write the updated content back to the page file
+        with open(page_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        logging.info(f"Updated page markdown for {file_info['filename']}")
+
+def update_metadata(directory: str, gen_struct_path: str, template_path: str) -> None:
+    """Walk through files and update metadata in parallel batches."""
     config_path = os.path.join(directory, 'config.yml')
     if not os.path.exists(config_path):
         logging.warning(f"No config.yml found in {directory}")
@@ -167,114 +253,33 @@ def update_metadata(args):
         logging.warning(f"Empty config.yml in {directory}")
         return
 
+    # Filter files that need processing
+    files_to_process = []
     for file_info in config.get('files', []):
-        # Add check for page markdown file
-        page_file = file_info.get('page')
-        if page_file is None:
-            continue
-        page_path = os.path.join(directory, page_file)
-        if not os.path.exists(page_path):
-            print(f"error: no page file found for {file_info['filename']}")
-            exit(1)
+        if (file_info.get('page') and 
+            not file_info['filename'].endswith('.html') and 
+            file_info.get('type') != 'other'):
+            files_to_process.append(file_info)
 
-        # Try different encodings
-        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030']
-        page_content = None
-        used_encoding = None
+    # Process files in batches of 8
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # Create arguments for each file
+        args_list = [(directory, file_info, gen_struct_path, template_path) 
+                    for file_info in files_to_process]
         
-        for encoding in encodings:
-            try:
-                with open(page_path, 'r', encoding=encoding) as f:
-                    page_content = f.read()
-                used_encoding = encoding
-                break  # If successful, break the loop
-            except UnicodeDecodeError:
-                continue
-                
-        if page_content is None:
-            logging.error(f"Failed to read {page_path} with any supported encoding")
-            continue
-
-        # If the file was read with a non-UTF-8 encoding, save it back as UTF-8
-        if used_encoding != 'utf-8':
-            try:
-                with open(page_path, 'w', encoding='utf-8') as f:
-                    f.write(page_content)
-                logging.info(f"Converted {page_path} from {used_encoding} to UTF-8")
-            except Exception as e:
-                logging.error(f"Failed to convert {page_path} to UTF-8: {e}")
-                continue
-
-        if '[Unknown description(update needed)]' not in page_content:
-            logging.info(f"Skipping {file_info['filename']} as its page doesn't need updating")
-            continue
-
-        if file_info['filename'].endswith('.html') or file_info.get('type') == 'other':
-            logging.info(f"Skipping {file_info['filename']} as it is an webpage or other")
-            continue
-        print(f"\n\nProcessing file_info: {file_info}\n\n")
-
-        file_path = os.path.join(directory, file_info['filename'])
-
-        additional_meta = {
-            'type': file_info.get('type', ''),
-            'format': file_info.get('format', '')
-            # 'archived': file_info.get('archived', '')
-        }
-        metadata = generate_metadata(file_path, gen_struct_path, template_path, additional_meta)
-        
-        if metadata:
-            # Update the page markdown content
-            new_content = page_content.replace(
-                '[Unknown description(update needed)]',
-                metadata['description']
-            )
-            new_content = new_content.replace(
-                '[Unknown tags(update needed)]',
-                ', '.join(metadata['tags'])
-            )
-            new_content = new_content.replace(
-                '[Unknown date(update needed)]',
-                metadata['date']
-            )
-            new_content = new_content.replace(
-                '[Unknown author(update needed)]',
-                metadata['author']
-            )
-            new_content = new_content.replace(
-                '[Unknown region(update needed)]',
-                metadata['region']
-            )
-
-            # Write the updated content back to the page file
-            with open(page_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-            logging.info(f"Updated page markdown for {file_info['filename']}")
+        # Execute in parallel
+        list(executor.map(process_single_file, args_list))
 
 def main():
     gen_struct_path = '.github/scripts/ai/gen_struct.py'
     template_path = '.github/prompts/gen_file_meta.md.template'
-    root_directory = '.'
+    root_directory = '.'  # Start from the current directory
 
-    # Collect all valid directories that need processing
-    directories_to_process = []
     for root, dirs, files in os.walk(root_directory):
         if is_ignored(root, ignore_patterns):
             logging.info(f"Ignoring directory {root}")
             continue
-        if os.path.exists(os.path.join(root, 'config.yml')):
-            directories_to_process.append(root)
-
-    # Create arguments for each directory
-    process_args = [(dir_path, gen_struct_path, template_path) 
-                   for dir_path in directories_to_process]
-
-    # Use number of CPU cores, but limit to a reasonable number (e.g., 4)
-    num_processes = min(8, cpu_count())
-    
-    # Create a process pool and map the work
-    with Pool(processes=num_processes) as pool:
-        pool.map(update_metadata, process_args)
+        update_metadata(root, gen_struct_path, template_path)
 
 if __name__ == "__main__":
     main()

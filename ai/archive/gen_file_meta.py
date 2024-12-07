@@ -7,6 +7,7 @@ import logging
 from docx import Document
 import pdfplumber
 from ignore import load_ignore_patterns, is_ignored
+import docx2txt
 
 ignore_patterns = load_ignore_patterns()
 
@@ -42,14 +43,21 @@ def extract_text(file_path):
         except Exception as e:
             print(f"Error extracting text from PDF: {e}")
             return "Error extracting text from PDF."
-    elif ext in ['.doc', '.docx']:
+    elif ext == '.doc':
         try:
-            doc = Document(file_path)
-            text = '\n'.join([para.text for para in doc.paragraphs])
-            return text[:24000]  # Limit to 2400 characters
+            # Requires antiword to be installed on the system
+            result = subprocess.run(['antiword', file_path], capture_output=True, text=True)
+            return result.stdout[:24000]
         except Exception as e:
-            print(f"Error extracting text from Word document: {e}")
-            return "Error extracting text from Word document."
+            logging.error(f"Error extracting DOC with antiword: {str(e)}")
+            return f"Error: Could not read DOC file: {str(e)}"
+    elif ext == '.docx':
+        try:
+            text = docx2txt.process(file_path)
+            return text[:24000]
+        except Exception as e:
+            logging.error(f"Error extracting text from Word document {file_path}: {str(e)}")
+            return f"Error extracting text from Word document: {str(e)}"
     # for image files, try to extract text from the image
     elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']:
         return "This is a image file, see the image file for more information."

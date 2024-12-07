@@ -47,9 +47,9 @@ def add_notice_to_txt_files_from_yaml(root_dir, notice_template_path):
                             if notice_content.strip() in content:
                                 continue  # Skip if notice already exists
                             
-                            # Append the notice to the file
-                            with open(txt_file_path, 'a', encoding='utf-8') as f:
-                                f.write("\n\n" + notice_content.strip())
+                            # Add the notice at the top of the file
+                            with open(txt_file_path, 'w', encoding='utf-8') as f:
+                                f.write(notice_content.strip() + "\n\n" + content)
                             files_modified += 1
                             print(f"Notice added to: {txt_file_path}")
                         except Exception as e:

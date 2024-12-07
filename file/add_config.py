@@ -75,7 +75,7 @@ def update_files(root_dir, visit_links_path):
                                         with open(page_path, 'w', encoding='utf-8') as f:
                                             f.write(updated_content)
                                         print(f"Updated link for {file['name']} in {page_path}")
-                                    
+
                                     if "[Unknown archived date(update needed)]" in content:
                                         if not visited_date:
                                             print(f"Warning: No visited date found for {file['name']}")
@@ -90,7 +90,12 @@ def update_files(root_dir, visit_links_path):
                                 with open(page_path, 'w', encoding='utf-8') as f:
                                     f.write(updated_content)
                                 print(f"Updated archived date for {file['name']} in {page_path}")
-
+                            if "[[Unknown link(update needed)]]([Unknown link(update needed)])" in content:
+                                updated_content = content.replace("[[Unknown link(update needed)]]([Unknown link(update needed)])", "[Unknown link(update needed)]")
+                                with open(page_path, 'w', encoding='utf-8') as f:
+                                    f.write(updated_content)
+                                print(f"Updated link for {file['name']} in {page_path}")
+                                    
 if __name__ == "__main__":
     # Adjust these paths according to your project structure
     root_directory = "."  # Start from current directory

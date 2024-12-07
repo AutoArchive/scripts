@@ -8,6 +8,7 @@ from docx import Document
 import pdfplumber
 from ignore import load_ignore_patterns, is_ignored
 import docx2txt
+from multiprocessing import Pool, cpu_count
 
 ignore_patterns = load_ignore_patterns()
 
@@ -27,7 +28,7 @@ def extract_text(file_path):
                     # If successful, convert to UTF-8 if needed
                     if encoding != 'utf-8':
                         content = content.encode('utf-8').decode('utf-8')
-                    return content[:24000]
+                    return content[:5000]
             except UnicodeDecodeError:
                 continue
         # If all encodings fail
@@ -39,7 +40,7 @@ def extract_text(file_path):
                 text = ''
                 for page in pdf.pages:
                     text += page.extract_text() or ''
-            return text[:24000]  # Limit to 2400 characters
+            return text[:5000]  # Limit to 2400 characters
         except Exception as e:
             print(f"Error extracting text from PDF: {e}")
             return "Error extracting text from PDF."
@@ -47,14 +48,14 @@ def extract_text(file_path):
         try:
             # Requires antiword to be installed on the system
             result = subprocess.run(['antiword', file_path], capture_output=True, text=True)
-            return result.stdout[:24000]
+            return result.stdout[:5000]
         except Exception as e:
             logging.error(f"Error extracting DOC with antiword: {str(e)}")
             return f"Error: Could not read DOC file: {str(e)}"
     elif ext == '.docx':
         try:
             text = docx2txt.process(file_path)
-            return text[:24000]
+            return text[:4000]
         except Exception as e:
             logging.error(f"Error extracting text from Word document {file_path}: {str(e)}")
             return f"Error extracting text from Word document: {str(e)}"
@@ -150,8 +151,10 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
         os.unlink(temp_output_path)
         os.unlink(schema_file)
 
-def update_metadata(directory, gen_struct_path, template_path):
-    """Walk through files and update metadata."""
+def update_metadata(args):
+    """Modified version of update_metadata that accepts a tuple of arguments."""
+    directory, gen_struct_path, template_path = args
+    
     config_path = os.path.join(directory, 'config.yml')
     if not os.path.exists(config_path):
         logging.warning(f"No config.yml found in {directory}")
@@ -251,13 +254,27 @@ def update_metadata(directory, gen_struct_path, template_path):
 def main():
     gen_struct_path = '.github/scripts/ai/gen_struct.py'
     template_path = '.github/prompts/gen_file_meta.md.template'
-    root_directory = '.'  # Start from the current directory
+    root_directory = '.'
 
+    # Collect all valid directories that need processing
+    directories_to_process = []
     for root, dirs, files in os.walk(root_directory):
         if is_ignored(root, ignore_patterns):
             logging.info(f"Ignoring directory {root}")
             continue
-        update_metadata(root, gen_struct_path, template_path)
+        if os.path.exists(os.path.join(root, 'config.yml')):
+            directories_to_process.append(root)
+
+    # Create arguments for each directory
+    process_args = [(dir_path, gen_struct_path, template_path) 
+                   for dir_path in directories_to_process]
+
+    # Use number of CPU cores, but limit to a reasonable number (e.g., 4)
+    num_processes = min(8, cpu_count())
+    
+    # Create a process pool and map the work
+    with Pool(processes=num_processes) as pool:
+        pool.map(update_metadata, process_args)
 
 if __name__ == "__main__":
     main()

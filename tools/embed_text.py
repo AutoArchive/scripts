@@ -14,6 +14,9 @@ def convert_doc_to_text(filepath):
             result = subprocess.run(['antiword', filepath], 
                                   capture_output=True, text=True, check=True)
             return result.stdout
+        elif filepath.endswith('.txt'):
+            with open(filepath, 'r') as file:
+                return file.read()
     except subprocess.CalledProcessError as e:
         print(f"Error converting {filepath}: {e}")
     except Exception as e:

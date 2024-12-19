@@ -2,6 +2,7 @@ import os
 import subprocess
 import re
 import yaml
+import argparse
 
 def convert_doc_to_text(filepath):
     """Convert doc/docx to text, with error handling"""
@@ -59,11 +60,6 @@ def is_control_sequence_line(line):
     has_required_chars = bool(re.search(r'[\d\~\^\?\:\)\!\@\#\$\%\^\&\*\(\)\[\]\{\}\<\>\_\+\-\=\|\\\/\'\"\`\;\,]', line))
     no_chinese = not bool(re.search(r'[\u4e00-\u9fff]', line))
     
-    # For debugging
-    # if not (has_only_controls and has_required_chars and no_chinese):
-    #     print(f"Line not matched: {line!r}")
-    #     print(f"Controls: {has_only_controls}, Required: {has_required_chars}, No Chinese: {no_chinese}")
-    
     return has_only_controls and has_required_chars and no_chinese
 
 def strip_trailing_special_chars(line):
@@ -105,11 +101,12 @@ def clean_control_sequences(text):
     text = re.sub(r'\\+\s*', ' ', text)
     text = re.sub(r'\\([^\\])', r'\1', text)
     text = text.replace('\\', '')
-    
+    # convert the single '\n' to double for markdown.
+    text = text.replace('\n', '\n\n')
     return text.strip()
 
 
-def process_page_file(filepath, file_mapping, base_dir):
+def process_page_file(filepath, file_mapping, base_dir, remove_original):
     """Process single markdown page file using config mapping"""
     print(f"\nProcessing file: {filepath}")
     
@@ -155,29 +152,43 @@ def process_page_file(filepath, file_mapping, base_dir):
         # Clean control sequences instead of escaping
         converted_text = clean_control_sequences(converted_text)
         
-        new_section = f'''## 正文 {{ data-search-exclude }}
+        new_section = f'''
+
+## 正文 {{ data-search-exclude }}
 
 <!-- tcd_main_text -->
 {converted_text}
-<!-- tcd_main_text_end -->'''
+<!-- tcd_main_text_end -->
+
+'''
         
         # Use string replacement instead of regex for substitution
         start = content.find('<!-- tcd_download_link -->')
         end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
         if start >= 0 and end >= 0:
-            new_content = content[:start] + new_section + content[end:]
             old_file_path = filepath
-            new_content = new_content.replace("## 其他信息", "## 其他信息 [Processed Page Metadata]")
-            with open(filepath.replace("_page.md", ".md"), 'w', encoding='utf-8') as f:
+            if remove_original:
+                filepath = filepath.replace("_page.md", ".md")
+                new_content = content[:start] + new_section + content[end:]
+            else:
+                new_content = content[:end] + new_section + content[end:]
+            new_content = new_content.replace("## 其他信息\n", "## 其他信息 [Processed Page Metadata]\n")
+            with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(new_content)
             print(f"Successfully processed: {filepath}")
-            os.remove(doc_path)
-            os.remove(old_file_path)
+            if remove_original:
+                os.remove(doc_path)
+                os.remove(old_file_path)
+        
         
     except Exception as e:
         print(f"Error processing {filepath}: {e}")
 
 def main():
+    parser = argparse.ArgumentParser(description='Process markdown files.')
+    parser.add_argument('--remove-original', default=False, help='Remove the original file and link to the original file')
+    args = parser.parse_args()
+
     for root, dirs, files in os.walk('.'):
         if 'config.yml' in files:
             config_path = os.path.join(root, 'config.yml')
@@ -187,7 +198,7 @@ def main():
             
             for page_file in [f for f in files if f.endswith('_page.md')]:
                 page_path = os.path.join(root, page_file)
-                process_page_file(page_path, file_mapping, root)
+                process_page_file(page_path, file_mapping, root, args.remove_original)
 
 if __name__ == '__main__':
     main()

@@ -182,7 +182,7 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
                 filepath = filepath.replace("_page.md", ".md")
                 new_content = content[:start] + new_section + content[end:]
             else:
-                new_content = content[:end] + new_section + content[end:]
+                new_content = content + new_section
             new_content = new_content.replace("## 其他信息\n", "## 其他信息 [Processed Page Metadata]\n")
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(new_content)

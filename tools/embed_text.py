@@ -156,8 +156,8 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
                 converted_text = converted_text[:1024 * 1024] + notice
                 print("Notice added to the text. Please download the txt file and truncate the content.")
             return converted_text
-      
-        converted_text = check_text_length_and_add_notice(converted_text)
+        if not remove_original:
+            converted_text = check_text_length_and_add_notice(converted_text)
 
 
         # Clean control sequences instead of escaping

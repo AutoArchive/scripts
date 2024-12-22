@@ -27,7 +27,7 @@ def update_download_links(directory: str):
                 
                 # Extract the old link pattern
                 match = re.search(
-                    r'<!-- tcd_download_link -->\s*[TXT ]?下载: \[(.*?)\]\((.*?)\)\s*<!-- tcd_download_link_end -->',
+                    r'<!-- tcd_download_link -->\s*.*\[(.*?)\]\((.*?)\)\s*<!-- tcd_download_link_end -->',
                     content
                 )
                 

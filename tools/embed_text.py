@@ -116,6 +116,10 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
         
         pattern = r'<!--\s*tcd_download_link\s*-->\n(.*?)\n<!--\s*tcd_download_link_end\s*-->'
         match = re.search(pattern, content, re.DOTALL)
+
+        if "tcd_main_text" in content:
+            print("skip because already exists")
+            return
         
         if not match:
             print(f"No download link found in: {filepath}")

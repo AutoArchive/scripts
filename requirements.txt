@@ -5,3 +5,4 @@ python-docx
 docx2txt
 beautifulsoup4
 EbookLib
+chardet

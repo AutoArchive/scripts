@@ -4,7 +4,6 @@ import json
 import subprocess
 import tempfile
 import logging
-from docx import Document
 import pdfplumber
 from ignore import load_ignore_patterns, is_ignored
 import docx2txt

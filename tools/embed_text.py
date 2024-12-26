@@ -155,9 +155,9 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
         
         # if file content is > 500KB, add noticce
         def check_text_length_and_add_notice(converted_text):
-            if len(converted_text.encode('utf-8')) > 1024 * 1024:  # 1MB
+            if len(converted_text.encode('utf-8')) > 100 * 1024:  # 100KB
                 notice = "\n\n文件内容超过上限。请下载txt文件获取完整版。\n"
-                converted_text = converted_text[:1024 * 1024] + notice
+                converted_text = converted_text[:100 * 1024] + notice
                 print("Notice added to the text. Please download the txt file and truncate the content.")
             return converted_text
         if not remove_original:

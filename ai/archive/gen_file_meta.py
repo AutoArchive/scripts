@@ -9,6 +9,8 @@ from ignore import load_ignore_patterns, is_ignored
 import docx2txt
 import concurrent.futures
 from typing import List, Dict, Any
+from ebooklib import epub
+from bs4 import BeautifulSoup
 
 ignore_patterns = load_ignore_patterns()
 
@@ -40,7 +42,7 @@ def extract_text(file_path):
                 text = ''
                 for page in pdf.pages:
                     text += page.extract_text() or ''
-            return text[:5000]  # Limit to 2400 characters
+            return text[:5000]  # Limit to 5000 characters
         except Exception as e:
             print(f"Error extracting text from PDF: {e}")
             return "Error extracting text from PDF."
@@ -59,9 +61,21 @@ def extract_text(file_path):
         except Exception as e:
             logging.error(f"Error extracting text from Word document {file_path}: {str(e)}")
             return f"Error extracting text from Word document: {str(e)}"
+    elif ext == '.epub':
+        try:
+            book = epub.read_epub(file_path)
+            text = ''
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                    soup = BeautifulSoup(item.get_body_content(), 'html.parser')
+                    text += soup.get_text()
+            return text[:5000]
+        except Exception as e:
+            logging.error(f"Error extracting text from EPUB {file_path}: {str(e)}")
+            return f"Error extracting text from EPUB: {str(e)}"
     # for image files, try to extract text from the image
     elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']:
-        return "This is a image file, see the image file for more information."
+        return "This is an image file, see the image file for more information."
     else:
         return "This is a binary file."
 

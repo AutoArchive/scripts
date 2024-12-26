@@ -42,7 +42,7 @@ def update_download_links(directory: str):
                     # Replace the old link block with the new link block
                     updated_content = re.sub(
                         r'<!-- tcd_download_link -->.*?<!-- tcd_download_link_end -->',
-                        f"<!-- tcd_download_link -->\nTXT 下载: [{new_filename}]({new_link})\n<!-- tcd_download_link_end -->",
+                        f"<!-- tcd_download_link -->\n下载: [{new_filename}]({new_link})\n<!-- tcd_download_link_end -->",
                         content,
                         flags=re.DOTALL
                     )

@@ -3,3 +3,5 @@ openai
 pdfplumber
 python-docx
 docx2txt
+beautifulsoup4
+EbookLib

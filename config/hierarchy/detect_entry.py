@@ -12,7 +12,7 @@ class EntryDetector:
     def __init__(self):
         self.type_mapping = {
             'webpage': ['.html', '.md', '.htm'],
-            'document': ['.txt', '.doc', '.docx', '.pdf'],
+            'document': ['.txt', '.doc', '.docx', '.pdf', '.epub'],
             'image': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'],
             'video': ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'],
             'audio': ['.mp3', '.wav', '.ogg', '.m4a'],

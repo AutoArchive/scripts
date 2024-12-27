@@ -2,6 +2,10 @@
 
 This directory contains various automation scripts for managing documents and archives.
 
+## install deps
+
+
+
 ## Directory Structure
 
 - `ai/`: AI-related utilities for document processing

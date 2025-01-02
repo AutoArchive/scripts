@@ -4,6 +4,14 @@ import re
 import yaml
 import argparse
 
+# if file content is > 500KB, add noticce
+def check_text_length_and_add_notice(converted_text):
+    if len(converted_text.encode('utf-8')) > 100 * 1024:  # 100KB
+        notice = "\n\n文件内容超过上限。请下载txt文件获取完整版。\n"
+        converted_text = converted_text[:100 * 1024] + notice
+        print("Notice added to the text. Please download the txt file and truncate the content.")
+    return converted_text
+
 def convert_doc_to_text(filepath):
     """Convert doc/docx to text, with error handling"""
     try:
@@ -105,9 +113,16 @@ def clean_control_sequences(text):
     text = text.replace('\n', '\n\n')
     return text.strip()
 
+def create_pdf_preview_section(pdf_filename):
+    """Create HTML preview section for PDF files"""
+    relative_path = f"{pdf_filename}"
+    preview_html = f"""<iframe src="../{relative_path}" width="100%" height="600px">
+    <p>无法显示PDF，请 <a href="{relative_path}">下载</a> 查看。</p>
+</iframe>"""
+    return preview_html
 
 def process_page_file(filepath, file_mapping, base_dir, remove_original):
-    """Process single markdown page file using config mapping"""
+    """Process single markdown page file using config mapping."""
     print(f"\nProcessing file: {filepath}")
     
     try:
@@ -149,24 +164,25 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
             return
         
         print(f"Found document at: {doc_path}")
-        converted_text = convert_doc_to_text(doc_path)
-        if not converted_text:
+        
+        # Refactored to check file types first
+        if doc_filename.lower().endswith('.pdf'):
+            # PDF preview
+            converted_text = create_pdf_preview_section(doc_filename)
+        elif doc_filename.lower().endswith('.docx') or doc_filename.lower().endswith('.doc') or doc_filename.lower().endswith('.txt'):
+            # Use the existing text conversion
+            converted_text = convert_doc_to_text(doc_path)
+            if not remove_original:
+                converted_text = check_text_length_and_add_notice(converted_text)
+            # Clean control sequences instead of escaping
+            converted_text = clean_control_sequences(converted_text)
+        else:
+            print("Unsupported file type. Skipping.")
             return
         
-        # if file content is > 500KB, add noticce
-        def check_text_length_and_add_notice(converted_text):
-            if len(converted_text.encode('utf-8')) > 100 * 1024:  # 100KB
-                notice = "\n\n文件内容超过上限。请下载txt文件获取完整版。\n"
-                converted_text = converted_text[:100 * 1024] + notice
-                print("Notice added to the text. Please download the txt file and truncate the content.")
-            return converted_text
-        if not remove_original:
-            converted_text = check_text_length_and_add_notice(converted_text)
+        if not converted_text:
+            return
 
-
-        # Clean control sequences instead of escaping
-        converted_text = clean_control_sequences(converted_text)
-        
         new_section = f'''
 
 ## 正文 {{ data-search-exclude }}

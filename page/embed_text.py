@@ -117,7 +117,7 @@ def create_pdf_preview_section(pdf_filename):
     """Create HTML preview section for PDF files"""
     relative_path = f"{pdf_filename}"
     preview_html = f"""<iframe src="../{relative_path}" width="100%" height="600px">
-    <p>无法显示PDF，请下载</a> 查看。</p>
+    <p>无法显示PDF，请下载查看。</p>
 </iframe>"""
     return preview_html
 

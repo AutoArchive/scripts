@@ -71,13 +71,13 @@ def process_independence_to_json():
         # Get count from search_index.yml instead of local file
         size = get_search_index_count(url)
             
-        entry_data = {
-            'name': name,
-            'url': url,
+        # Start with all fields from the original entry
+        entry_data = entry.copy()
+        # Add or update specific fields
+        entry_data.update({
             'size': size,
-            'description': entry.get('description', ''),
             'last_updated': None
-        }
+        })
             
         all_entries.append(entry_data)
         print(f"Generated JSON for {name} with {size} entries")

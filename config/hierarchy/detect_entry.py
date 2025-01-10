@@ -25,6 +25,7 @@ class EntryDetector:
             '.docx': 'Microsoft Word Document (OpenXML)',
             '.txt': 'Plain Text',
             '.md': 'Markdown',
+            '.epub': 'EPUB Document',
             # Images
             '.jpg': 'JPEG Image',
             '.jpeg': 'JPEG Image',

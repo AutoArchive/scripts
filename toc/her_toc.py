@@ -26,10 +26,12 @@ def generate_file_entry(file_info, directory='.'):
         if page := file_info.get('page'):
             page_path = os.path.join(directory, page)
             if os.path.exists(page_path):
-                year, description = extract_metadata_from_markdown(page_path)
+                year, archived_date, description = extract_metadata_from_markdown(page_path)
                 if description:
                     entry += f"<details><summary>查看摘要</summary>\n\n{description}\n</details>\n\n"
                 file_info['year'] = year or 'Unknown'
+                # 设置默认的 archived_date
+                file_info['archived_date'] = archived_date or '9999-12-31'
     
     return entry
 
@@ -44,12 +46,14 @@ def generate_categorized_file_toc(files, directory='.'):
     for file_info in sorted(files, key=lambda x: natural_sort_key(x['name'])):
         file_type = file_info['type']
         entry = generate_file_entry(file_info, directory)
-        # Use '0000' for unknown years to make them appear last
         year = file_info.get('year', '0000') if file_info.get('year') != 'Unknown' else '0000'
         
         if year not in categories[file_type]:
             categories[file_type][year] = []
-        categories[file_type][year].append(entry)
+            
+        # Store tuple of (entry, archived_date) for sorting
+        archived_date = file_info.get('archived_date', '9999-12-31')  # Default date for no archived_date
+        categories[file_type][year].append((entry, archived_date))
     
     # Generate TOC
     toc = []
@@ -59,15 +63,24 @@ def generate_categorized_file_toc(files, directory='.'):
         'webpage': '🌐 网页', 'other': '📎 其他'
     }
     
+    # 改进排序逻辑
+    def sort_key(entry_tuple):
+        entry, date = entry_tuple
+        if date is None:
+            return '9999-12-31'
+        return date
+    
     for file_type, years in categories.items():
         if years:
             toc.append(f"\n### {type_names[file_type]}\n")
-            # Sort years in reverse order and replace '0000' with 'Unknown'
             for year in sorted(years.keys(), reverse=True):
                 if years[year]:
-                    display_year = 'Unknown' if year == '0000' else year
+                    display_year = '时间未知，按收录顺序排列' if year == '0000' else year
                     toc.append(f"\n#### {display_year}\n")
-                    toc.extend(years[year])
+                    
+                    # 使用新的排序逻辑
+                    sorted_entries = sorted(years[year], key=sort_key)
+                    toc.extend(entry for entry, _ in sorted_entries)
     
     return "\n".join(toc)
 

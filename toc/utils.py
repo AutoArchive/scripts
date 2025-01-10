@@ -129,7 +129,7 @@ def count_files_recursive(directory, ignore_regexes):
 
 
 def extract_metadata_from_markdown(file_path):
-    """Extract year and description from markdown file."""
+    """Extract year, archived_date and description from markdown file."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -144,6 +144,10 @@ def extract_metadata_from_markdown(file_path):
         date_match = re.search(r'\|\s*Date\s*\|\s*(\d{4})[^|]*\|', content)
         year = date_match.group(1) if date_match else None
 
-        return year, description
+        # Extract archived date from metadata table
+        archived_match = re.search(r'\|\s*Archived Date\s*\|\s*([^|]+)\|', content)
+        archived_date = archived_match.group(1).strip() if archived_match else '9999-12-31'
+
+        return year, archived_date, description
     except:
-        return None, None
+        return None, '9999-12-31', None

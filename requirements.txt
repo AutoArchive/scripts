@@ -8,3 +8,5 @@ EbookLib
 chardet
 requests
 PyYAML
+epub2txt
+

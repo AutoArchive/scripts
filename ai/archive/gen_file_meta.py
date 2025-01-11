@@ -9,8 +9,8 @@ from ignore import load_ignore_patterns, is_ignored
 import docx2txt
 import concurrent.futures
 from typing import List, Dict, Any
-from ebooklib import epub
 from bs4 import BeautifulSoup
+import epub2txt
 
 ignore_patterns = load_ignore_patterns()
 
@@ -63,13 +63,8 @@ def extract_text(file_path):
             return f"Error extracting text from Word document: {str(e)}"
     elif ext == '.epub':
         try:
-            book = epub.read_epub(file_path)
-            text = ''
-            for item in book.get_items():
-                if item.get_type() == ebooklib.ITEM_DOCUMENT:
-                    soup = BeautifulSoup(item.get_body_content(), 'html.parser')
-                    text += soup.get_text()
-            return text[:5000]
+            text = epub2txt.epub2txt(file_path)
+            return text[:10000]
         except Exception as e:
             logging.error(f"Error extracting text from EPUB {file_path}: {str(e)}")
             return f"Error extracting text from EPUB: {str(e)}"

@@ -6,3 +6,5 @@ docx2txt
 beautifulsoup4
 EbookLib
 chardet
+requests
+PyYAML

@@ -167,7 +167,16 @@ def main():
         # Remove duplicates if requested
         if args.remove_duplicates:
             for duplicate in duplicates_to_remove:
+                # Remove the duplicate file
                 os.remove(md5_catalog[duplicate]['path'])
+                
+                # Check and remove associated page.md file
+                file_path = md5_catalog[duplicate]['path']
+                page_md_path = os.path.splitext(file_path)[0] + '_page.md'
+                if os.path.exists(page_md_path):
+                    os.remove(page_md_path)
+                    print(f"Removed associated page.md file: {page_md_path}")
+                
                 del md5_catalog[duplicate]
                 print(f"Removed duplicate file: {duplicate}")
 

@@ -132,7 +132,11 @@ def process_directory(directory, ignore_regexes):
     # Add description if available
     if 'description' in config:
         toc_content.append(f"{config['description']}\n")
-    
+        
+    # Add tags if available
+    if 'tags' in config and config['tags']:
+        toc_content.append("\n标签: " + ", ".join([f"`{tag}`" for tag in config['tags']]) + "\n")
+
     # Add one line total count
     total_count = count_files_recursive(directory, ignore_regexes)
     toc_content.append(f"\n总计 {total_count} 篇内容\n\n")

@@ -5,8 +5,7 @@ from datetime import datetime
 
 def create_backup_dir():
     """Create a backup directory with timestamp."""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_dir = f'backup_deleted_files_{timestamp}'
+    backup_dir = f'.github/backup_deleted_files'
     os.makedirs(backup_dir, exist_ok=True)
     return backup_dir
 

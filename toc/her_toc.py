@@ -171,6 +171,14 @@ def process_directory(directory, ignore_regexes):
     
     toc = "\n".join(toc_content)
     
+    exclude_marker = """---
+search:
+  exclude: true
+---
+
+
+"""
+
     # Generate README content
     template_path = get_template_path(directory)
     if template_path:
@@ -179,7 +187,7 @@ def process_directory(directory, ignore_regexes):
         updated_content = content.replace('{{TABLE_OF_CONTENTS}}', toc)
     else:
         dir_name = config.get('name', os.path.basename(directory))
-        updated_content = f"# {dir_name}\n\n{toc}"
+        updated_content = exclude_marker + f"# {dir_name}\n\n{toc}"
     
     # Write README.md
     readme_path = os.path.join(directory, 'README.md')

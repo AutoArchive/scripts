@@ -2,10 +2,27 @@
 import os
 import subprocess
 from datetime import datetime
+import re
+
+def decode_filename(filename):
+    """Decode escaped unicode filename back to Chinese."""
+    try:
+        # Remove quotes if present
+        filename = filename.strip('"')
+        # Convert escaped unicode to actual unicode
+        decoded = bytes(filename, 'utf-8').decode('unicode_escape').encode('latin1').decode('utf-8')
+        # Ensure .md extension
+        if not decoded.endswith('.md'):
+            decoded += '.md'
+        return decoded
+    except Exception as e:
+        print(f"Error decoding filename {filename}: {str(e)}")
+        return filename
 
 def create_backup_dir():
     """Create a backup directory with timestamp."""
-    backup_dir = f'.github/backup_deleted_files'
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_dir = f'backup_deleted_files_{timestamp}'
     os.makedirs(backup_dir, exist_ok=True)
     return backup_dir
 
@@ -21,6 +38,16 @@ def get_tree_entries(commit_hash):
         except ValueError:
             continue
     return entries
+
+def sanitize_path(path):
+    """Sanitize path to avoid too long filenames."""
+    if len(os.path.basename(path)) > 200:  # Max filename length
+        dirname = os.path.dirname(path)
+        basename = os.path.basename(path)
+        # Keep the first 100 and last 100 chars including extension
+        basename = basename[:97] + '...' + basename[-97:]
+        return os.path.join(dirname, basename)
+    return path
 
 def recover_deleted_files():
     """Recover deleted files from the last commit and move them to backup directory."""
@@ -48,15 +75,19 @@ def recover_deleted_files():
         try:
             mode, type_, hash_ = prev_files[path]
             if type_ == 'blob':  # Only process regular files
+                # Decode and sanitize the path
+                decoded_path = decode_filename(path)
+                safe_path = sanitize_path(decoded_path)
+                
                 # Create directory structure
-                backup_path = os.path.join(backup_dir, path)
+                backup_path = os.path.join(backup_dir, safe_path)
                 os.makedirs(os.path.dirname(backup_path), exist_ok=True)
 
                 # Get file content using git cat-file
                 with open(backup_path, 'wb') as f:
                     subprocess.run(['git', 'cat-file', '-p', hash_],
                                 stdout=f, check=True)
-                print(f'Recovered: {path}')
+                print(f'Recovered: {decoded_path}')
 
         except Exception as e:
             print(f'Error processing {path}: {str(e)}')

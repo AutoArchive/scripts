@@ -50,6 +50,9 @@ python .github/scripts/file/add_config_from_page.py
 
 echo "Metadata added successfully!"
 
+
+python .github/scripts/page/gen_wordcloud.py
+
 # Generate table of contents
 python .github/scripts/toc/her_toc.py --wordcloud
 
@@ -61,7 +64,5 @@ python .github/scripts/file/add_config_from_page.py
 
 python .github/scripts/file/gen_search_index.py
 python .github/scripts/file/analysis_search_index.py
-
-python .github/scripts/page/gen_wordcloud.py
 
 echo "Search index generated successfully!"

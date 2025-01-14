@@ -93,8 +93,18 @@ def generate_wordcloud(text, output_path):
     wc.to_file(output_path)
     plt.close()
 
+def extract_tags(md_content):
+    """从 markdown 表格中提取 Tags"""
+    pattern = r'\|\s*Tags\s*\|\s*([^|]+?)\s*\|'
+    match = re.search(pattern, md_content)
+    if match:
+        tags = match.group(1).strip()
+        # 将逗号分隔的标签转换为空格分隔
+        return tags.replace('，', ' ').replace(',', ' ')
+    return ""
+
 def collect_abstracts(dir_path):
-    """递归收集指定目录及其子目录中的所有摘要"""
+    """递归收集指定目录及其子目录中的所有摘要和标签"""
     abstracts = []
     
     for root, dirs, files in os.walk(dir_path):
@@ -109,9 +119,11 @@ def collect_abstracts(dir_path):
                         with open(file_path, 'r', encoding='utf-8') as f:
                             content = f.read()
                             abstract = extract_abstract(content)
+                            tags = extract_tags(content)
                             if abstract:
-                                abstract = abstract + " " + file
-                                abstracts.append(abstract)
+                                # 将标签和摘要组合在一起
+                                combined_text = f"{abstract} {tags} {file}"
+                                abstracts.append(combined_text)
                     except Exception as e:
                         print(f"Error processing {file_path}: {e}")
     

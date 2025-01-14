@@ -54,6 +54,12 @@ echo "Independence info generated successfully!"
 python .github/scripts/page/embed_text.py
 
 # Generate table of contents
+python .github/scripts/page/gen_wordcloud.py
+
+# Generate table of contents
+python .github/scripts/page/gen_wordcloud.py
+
+# Generate table of contents
 python .github/scripts/toc/her_toc.py --wordcloud
 
 echo "Table of contents generated successfully!"
@@ -62,8 +68,3 @@ python .github/scripts/file/gen_search_index.py
 python .github/scripts/file/analysis_search_index.py
 
 echo "Search index generated successfully!"
-
-# generate wordcloud
-python .github/scripts/page/gen_wordcloud.py
-
-echo "Wordcloud generated successfully!"

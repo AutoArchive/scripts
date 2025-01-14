@@ -168,7 +168,7 @@ def process_directory(directory, ignore_regexes, include_wordcloud=False):
     # Add wordcloud if enabled and exists
     if include_wordcloud:
         if os.path.exists(wordcloud_path):
-            toc_content.append(f'\n\n<iframe src="../abstracts_wordcloud.html" width="100%" height="400px" frameborder="0"></iframe>\n')
+            toc_content.append(f'## 摘要词云图\n\n<iframe src="../abstracts_wordcloud.html" width="100%" height="400px" frameborder="0"></iframe>\n')
     
     # Add auto-generated note
     toc_content.append("\n> 本内容为自动生成，请修改 .github/ 目录下的对应脚本或者模板\n")

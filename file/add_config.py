@@ -60,41 +60,40 @@ def update_files(root_dir, visit_links_path):
                             print(f"Error reading {page_path}: {e}")
                             continue
                             
+                        # Initialize content and track if we need to update
+                        content_modified = False
+                        
                         if visit_links_data:  # Only try to update from visit_links if data exists
                             data = visit_links_data.get(file['md5'])
                             if data:
                                 visited_date = data.get('visited_date')
                                 link = data.get('link')
-                                # Read and update the page file
-                                if os.path.exists(page_path):
-                                    with open(page_path, 'r', encoding='utf-8') as f:
-                                        content = f.read()
-                                    
-                                    if "[Unknown link(update needed)]" in content:
-                                        updated_content = content.replace("[Unknown link(update needed)]", link)
-                                        with open(page_path, 'w', encoding='utf-8') as f:
-                                            f.write(updated_content)
-                                        print(f"Updated link for {file['name']} in {page_path}")
+                                
+                                if link and "[Unknown link(update needed)]" in content:
+                                    content = content.replace("[Unknown link(update needed)]", link)
+                                    content_modified = True
+                                    print(f"Updated link for {file['name']} in {page_path}")
 
-                                    if "[Unknown archived date(update needed)]" in content:
-                                        if not visited_date:
-                                            print(f"Warning: No visited date found for {file['name']}")
-                                            continue
-                                        updated_content = content.replace("[Unknown archived date(update needed)]", visited_date)
-                                        with open(page_path, 'w', encoding='utf-8') as f:
-                                            f.write(updated_content)
-                                        print(f"Updated archived date for {file['name']} in {page_path}")
+                                if visited_date and "[Unknown archived date(update needed)]" in content:
+                                    content = content.replace("[Unknown archived date(update needed)]", visited_date)
+                                    content_modified = True
+                                    print(f"Updated archived date for {file['name']} in {page_path}")
                         
+                        # If no visited_date was found in visit_links, use current date
                         if "[Unknown archived date(update needed)]" in content:
-                            updated_content = content.replace("[Unknown archived date(update needed)]", datetime.now().strftime("%Y-%m-%d"))
-                            with open(page_path, 'w', encoding='utf-8') as f:
-                                f.write(updated_content)
+                            content = content.replace("[Unknown archived date(update needed)]", datetime.now().strftime("%Y-%m-%d"))
+                            content_modified = True
                             print(f"Updated archived date for {file['name']} in {page_path}")
+                            
                         if "[[Unknown link(update needed)]]([Unknown link(update needed)])" in content:
-                            updated_content = content.replace("[[Unknown link(update needed)]]([Unknown link(update needed)])", "[Unknown link(update needed)]")
+                            content = content.replace("[[Unknown link(update needed)]]([Unknown link(update needed)])", "[Unknown link(update needed)]")
+                            content_modified = True
+                            print(f"Updated link format for {file['name']} in {page_path}")
+                        
+                        # Write the file only once if any modifications were made
+                        if content_modified:
                             with open(page_path, 'w', encoding='utf-8') as f:
-                                f.write(updated_content)
-                            print(f"Updated link for {file['name']} in {page_path}")
+                                f.write(content)
                                     
 if __name__ == "__main__":
     # Adjust these paths according to your project structure

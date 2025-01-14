@@ -169,7 +169,7 @@ def process_directory(directory, ignore_regexes, include_wordcloud=False):
     if include_wordcloud:
         wordcloud_path = os.path.join(directory, 'abstracts_wordcloud.png')
         if os.path.exists(wordcloud_path):
-            toc_content.append(f'\n\n### 词云图\n\n![摘要词云图](abstracts_wordcloud.png)\n')
+            toc_content.append(f'\n\n### 词云图\n\n![{directory}摘要词云图](abstracts_wordcloud.png)\n')
     
     # Add auto-generated note
     toc_content.append("\n> 本内容为自动生成，请修改 .github/ 目录下的对应脚本或者模板\n")

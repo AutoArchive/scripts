@@ -1,11 +1,12 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 import os
 import yaml
 from pathlib import Path
-import subprocess  # Ensure subprocess is imported
+import subprocess
 import re
-import requests  # Add this import at the top
+import requests
 import json
+import argparse
 from utils import *
 
 def generate_file_entry(file_info, directory='.'):
@@ -30,9 +31,8 @@ def generate_file_entry(file_info, directory='.'):
                 if description:
                     entry += f"<details><summary>查看摘要</summary>\n\n{description}\n</details>\n\n"
                 file_info['year'] = year or 'Unknown'
-                # 设置默认的 archived_date
                 file_info['archived_date'] = archived_date or '9999-12-31'
-    
+                
     return entry
 
 def generate_categorized_file_toc(files, directory='.'):
@@ -45,14 +45,13 @@ def generate_categorized_file_toc(files, directory='.'):
     # Sort and categorize
     for file_info in sorted(files, key=lambda x: natural_sort_key(x['name'])):
         file_type = file_info['type']
-        entry = generate_file_entry(file_info, directory)
+        entry = generate_file_entry(file_info, directory, include_wordcloud)
         year = file_info.get('year', '0000') if file_info.get('year') != 'Unknown' else '0000'
         
         if year not in categories[file_type]:
             categories[file_type][year] = []
             
-        # Store tuple of (entry, archived_date) for sorting
-        archived_date = file_info.get('archived_date', '9999-12-31')  # Default date for no archived_date
+        archived_date = file_info.get('archived_date', '9999-12-31')
         categories[file_type][year].append((entry, archived_date))
     
     # Generate TOC
@@ -111,7 +110,7 @@ def process_independence_entries(ignore_regexes):
         print(f"Warning: Failed to parse independence_repo.json")
         return []
 
-def process_directory(directory, ignore_regexes):
+def process_directory(directory, ignore_regexes, include_wordcloud=False):
     """Process a directory to generate README.md based on config.yml."""
     if is_ignored(directory, ignore_regexes):
         print(f"Skipping ignored directory: {directory}")
@@ -162,9 +161,14 @@ def process_directory(directory, ignore_regexes):
 
     # Add files section
     if config.get('files'):
-        files_toc = generate_categorized_file_toc(config['files'], directory)
+        files_toc = generate_categorized_file_toc(config['files'], directory, include_wordcloud)
         if files_toc:
             toc_content.append(files_toc)
+    
+    # Add wordcloud if enabled and exists
+    if include_wordcloud:
+        if os.path.exists(wordcloud_path):
+            toc_content.append(f'\n\n<iframe src="../abstracts_wordcloud.html" width="100%" height="400px" frameborder="0"></iframe>\n')
     
     # Add auto-generated note
     toc_content.append("\n> 本内容为自动生成，请修改 .github/ 目录下的对应脚本或者模板\n")
@@ -197,14 +201,20 @@ search:
     # Process subdirectories
     for subdir in config.get('subdirs', []):
         subdir_path = os.path.join(directory, subdir)
-        process_directory(subdir_path, ignore_regexes)
+        process_directory(subdir_path, ignore_regexes, include_wordcloud)
 
-
-def update_project_readme():
+def update_project_readme(include_wordcloud=False):
     """Update README files throughout the project based on config.yml files."""
     ignore_regexes = load_ignore_patterns()
-    process_directory('.', ignore_regexes)
+    process_directory('.', ignore_regexes, include_wordcloud)
     print("Table of contents generated successfully!")
 
+def main():
+    parser = argparse.ArgumentParser(description='Generate table of contents for the project')
+    parser.add_argument('--wordcloud', action='store_true', help='Include wordcloud visualizations in the output')
+    args = parser.parse_args()
+    
+    update_project_readme(include_wordcloud=args.wordcloud)
+
 if __name__ == "__main__":
-    update_project_readme()
+    main()

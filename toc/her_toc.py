@@ -45,7 +45,7 @@ def generate_categorized_file_toc(files, directory='.'):
     # Sort and categorize
     for file_info in sorted(files, key=lambda x: natural_sort_key(x['name'])):
         file_type = file_info['type']
-        entry = generate_file_entry(file_info, directory, include_wordcloud)
+        entry = generate_file_entry(file_info, directory)
         year = file_info.get('year', '0000') if file_info.get('year') != 'Unknown' else '0000'
         
         if year not in categories[file_type]:
@@ -161,14 +161,15 @@ def process_directory(directory, ignore_regexes, include_wordcloud=False):
 
     # Add files section
     if config.get('files'):
-        files_toc = generate_categorized_file_toc(config['files'], directory, include_wordcloud)
+        files_toc = generate_categorized_file_toc(config['files'], directory)
         if files_toc:
             toc_content.append(files_toc)
     
     # Add wordcloud if enabled and exists
     if include_wordcloud:
+        wordcloud_path = os.path.join(directory, 'abstracts_wordcloud.png')
         if os.path.exists(wordcloud_path):
-            toc_content.append(f'## 摘要词云图\n\n<iframe src="../abstracts_wordcloud.html" width="100%" height="400px" frameborder="0"></iframe>\n')
+            toc_content.append(f'\n\n### 词云图\n\n![摘要词云图](abstracts_wordcloud.png)\n')
     
     # Add auto-generated note
     toc_content.append("\n> 本内容为自动生成，请修改 .github/ 目录下的对应脚本或者模板\n")

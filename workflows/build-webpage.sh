@@ -51,7 +51,7 @@ python .github/scripts/file/add_config_from_page.py
 echo "Metadata added successfully!"
 
 # Generate table of contents
-python .github/scripts/toc/her_toc.py
+python .github/scripts/toc/her_toc.py --wordcloud
 
 echo "Table of contents generated successfully!"
 

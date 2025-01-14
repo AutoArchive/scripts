@@ -9,4 +9,7 @@ chardet
 requests
 PyYAML
 epub2txt
+wordcloud
+matplotlib
+pillow
 

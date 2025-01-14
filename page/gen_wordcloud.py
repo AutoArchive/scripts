@@ -2,9 +2,12 @@ import os
 import re
 import jieba
 from collections import Counter
-from pyecharts import options as opts
-from pyecharts.charts import WordCloud
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
 import yaml
+import requests
 
 def extract_abstract(md_content):
     """提取被注释包含的abstract内容"""
@@ -24,7 +27,6 @@ def get_stopwords():
                            '那样', '只', '都', '把', '可以', '这些', '那些', '没有', '看', '说', '地'])
     
     try:
-        # 尝试从文件加载停用词
         stopwords_file = os.path.join(os.path.dirname(__file__), 'chinese_stopwords.txt')
         if os.path.exists(stopwords_file):
             with open(stopwords_file, 'r', encoding='utf-8') as f:
@@ -36,26 +38,60 @@ def get_stopwords():
     return default_stopwords
 
 def generate_wordcloud(text, output_path):
-    """生成词云HTML文件"""
+    """生成词云图片文件"""
     # 分词
     words = jieba.cut(text)
     # 去除停用词
     stopwords = get_stopwords()
     words = [word for word in words if word not in stopwords and len(word) > 1]
     
-    # 统计词频
-    word_freq = Counter(words)
-    words_list = [(word, freq) for word, freq in word_freq.most_common(100)]
+    # 将分词结果组合成文本
+    text = ' '.join(words)
     
-    # 创建词云图
-    c = (
-        WordCloud()
-        .add("", words_list, word_size_range=[20, 100])
-        .set_global_opts(title_opts=opts.TitleOpts(title="摘要词云图"))
+    # Try different font paths
+    possible_font_paths = [
+        '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
+        '/usr/share/fonts/wqy-microhei/wqy-microhei.ttc',
+        '/usr/share/fonts/truetype/wqy-microhei/wqy-microhei.ttc',
+        '/usr/share/fonts/wqy/wqy-microhei.ttc',
+        'wqy-microhei.ttc',  # If font is in current directory
+        'SimHei.ttf',        # Windows font
+        'msyh.ttc'          # Windows font
+    ]
+    
+    font_path = None
+    for path in possible_font_paths:
+        if os.path.exists(path):
+            font_path = path
+            break
+    
+    if not font_path:
+        print("Warning: Could not find a suitable font. Downloading WQY-Microhei...")
+        # Download the font if not found
+        font_url = "https://github.com/anthonyfok/fonts-wqy-microhei/raw/master/wqy-microhei.ttc"
+        response = requests.get(font_url)
+        font_path = "wqy-microhei.ttc"
+        with open(font_path, "wb") as f:
+            f.write(response.content)
+    
+    # 创建词云对象
+    wc = WordCloud(
+        font_path=font_path,
+        width=1200,
+        height=800,
+        background_color='white',
+        max_words=100,
+        max_font_size=150,
+        random_state=42
     )
     
-    # 保存为HTML文件
-    c.render(output_path)
+    # 生成词云
+    wc.generate(text)
+    
+    # 保存图片
+    output_path = output_path.replace('.html', '.png')
+    wc.to_file(output_path)
+    plt.close()
 
 def collect_abstracts(dir_path):
     """递归收集指定目录及其子目录中的所有摘要"""
@@ -63,7 +99,9 @@ def collect_abstracts(dir_path):
     
     for root, dirs, files in os.walk(dir_path):
         if 'config.yml' in files:
-            # 处理当前目录下的md文件
+            # rm abstracts_wordcloud.html
+            if os.path.exists(os.path.join(root, 'abstracts_wordcloud.html')):
+                os.remove(os.path.join(root, 'abstracts_wordcloud.html'))
             for file in files:
                 if file.endswith('.md'):
                     file_path = os.path.join(root, file)
@@ -72,7 +110,6 @@ def collect_abstracts(dir_path):
                             content = f.read()
                             abstract = extract_abstract(content)
                             if abstract:
-                                # add file name to abstract
                                 abstract = abstract + " " + file
                                 abstracts.append(abstract)
                     except Exception as e:
@@ -85,17 +122,15 @@ def process_directory(base_path):
     for root, dirs, files in os.walk(base_path):
         if 'config.yml' in files:
             print(f"Processing directory: {root}")
-            # 收集当前目录及其子目录中的所有摘要
             abstracts = collect_abstracts(root)
             
-            # 如果找到了摘要，生成词云
             if abstracts:
                 combined_text = ' '.join(abstracts)
-                output_path = os.path.join(root, 'abstracts_wordcloud.html')
+                output_path = os.path.join(root, 'abstracts_wordcloud.html')  # 保持原文件名，在generate_wordcloud中会改为.png
                 generate_wordcloud(combined_text, output_path)
-                print(f"Generated wordcloud at: {output_path}")
+                print(f"Generated wordcloud at: {output_path.replace('.html', '.png')}")
             else:
                 print(f"No abstracts found in {root} or its subdirectories")
+
 if __name__ == "__main__":
-    # 获取当前脚本所在目录
     process_directory("./")

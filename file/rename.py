@@ -4,6 +4,10 @@ import re
 def rename_files_in_directory(directory: str):
     """Recursively rename files in the directory to remove spaces and special characters."""
     for root, _, files in os.walk(directory):
+        # Skip .github directory
+        if root.startswith('./.github') or root.startswith('.github'):
+            continue
+            
         for filename in files:
             # Generate new filename by replacing spaces and special characters with underscores
             new_filename = re.sub(r'[ \[\]\(\)#]', '_', filename)

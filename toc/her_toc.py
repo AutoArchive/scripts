@@ -148,7 +148,17 @@ def process_directory(directory, ignore_regexes, include_wordcloud=False):
             if is_ignored(subdir_path, ignore_regexes):
                 continue
             file_count = count_files_recursive(subdir_path, ignore_regexes)
-            toc_content.append(f"- [{subdir}]({subdir}) ({file_count} 篇内容)")
+            subdir_config_path = os.path.join(subdir_path, 'config.yml')
+            entry = f"- [{subdir}]({subdir}) ({file_count} 篇内容)"
+            
+            # Add details/summary if subdir has config.yml with description
+            if os.path.exists(subdir_config_path):
+                with open(subdir_config_path, 'r', encoding='utf-8') as f:
+                    subdir_config = yaml.safe_load(f)
+                    if description := subdir_config.get('description'):
+                        entry += f"\n  <details><summary>内容简介</summary>\n\n  {description}\n  </details>"
+            
+            toc_content.append(entry)
         toc_content.append("")
 
     # Process independence entries (replacing .conf files)

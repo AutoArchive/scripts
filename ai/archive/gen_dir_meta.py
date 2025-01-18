@@ -6,6 +6,7 @@ import tempfile
 import logging
 from pathlib import Path
 from ignore import load_ignore_patterns, is_ignored
+from utils import extract_metadata_from_markdown
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,16 +22,25 @@ def get_directory_files(directory):
             files.append(item)
     return "\n".join(files)
 
-def get_content_summary(config, max_files=20):
+def get_content_summary(directory, config, max_files=20):
     logging.debug(f"Generating content summary from config with {len(config.get('files', []))} files")
     content = []
     
-    # Get file names from config
+    # Get file names and descriptions from config
     if 'files' in config:
         files = config['files'][:max_files] if len(config['files']) > max_files else config['files']
         for file in files:
             if isinstance(file, dict) and 'name' in file:
-                content.append(file['name'])
+                file_path = os.path.join(directory, file['page'])
+                print(file_path)
+                _, _, description = extract_metadata_from_markdown(file_path)
+                
+                # Add file name and description if available
+                if description:
+                    content.append(f"{file['name']}\n{description}")
+                else:
+                    print("no desc")
+                    content.append(file['name'])
     
     # Get subdirectory names
     if 'subdirs' in config:
@@ -44,35 +54,30 @@ def get_content_summary(config, max_files=20):
     if 'files' in config and len(config['files']) > max_files:
         content.append('...')
     
-    return "\n".join(content)
+    return "\n\n".join(content)
 
 def generate_directory_metadata(directory, gen_struct_path, template_path):
     logging.info(f"Generating metadata for directory: {directory}")
     
     # Read and format the template
-    try:
-        with open(template_path, 'r', encoding='utf-8') as template_file:
-            template = template_file.read()
+    with open(template_path, 'r', encoding='utf-8') as template_file:
+        template = template_file.read()
         
-        # Read existing config
-        config_path = os.path.join(directory, 'config.yml')
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f) or {}
+    # Read existing config
+    config_path = os.path.join(directory, 'config.yml')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f) or {}
         
         # Get content summary
-        content_summary = get_content_summary(config)
+    content_summary = get_content_summary(directory, config)
         
-        # Format the template with directory information
-        input_content = template.format(
+    # Format the template with directory information
+    input_content = template.format(
             directory_path=directory,
             directory_files=content_summary
-        )
-        print(f"Formatted template with content summary of length: {len(content_summary)}")
-
-    except Exception as e:
-        logging.error(f"Error preparing template: {e}")
-        return None
-
+    )
+    print(f"Formatted template with content summary of length: {len(content_summary)}")
+    print(input_content)
     # Define the JSON schema
     schema = {
         "type": "object",
@@ -129,7 +134,7 @@ def update_directory_metadata(directory, gen_struct_path, template_path):
         config = yaml.safe_load(f) or {}
 
     # Skip if description already exists
-    if config.get('description'):
+    if config.get('description') != '':
         logging.info(f"Skipping {directory} as it already has description")
         return
 

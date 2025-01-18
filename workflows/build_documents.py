@@ -45,7 +45,6 @@ def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     scripts = [
         ('python .github/scripts/file/rename.py', 'File renaming'),
         ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
-        ('python .github/scripts/ai/archive/gen_dir_meta.py', 'Directory meta generation'),
         ('python .github/scripts/others/catalog.py', 'Global catalog generation'),
         ('python .github/scripts/others/get_md5_list.py', 'MD5 list generation'),
         ('python .github/scripts/page/gen_page.py', 'Page generation'),
@@ -53,6 +52,7 @@ def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
         ('python .github/scripts/file/add_config.py', 'Metadata addition'),
         ('python .github/scripts/toc/independence_info.py', 'Independence info generation'),
         ('python .github/scripts/page/embed_text.py', 'Text embedding'),
+        ('python .github/scripts/ai/archive/gen_dir_meta.py', 'Directory meta generation'),
     ]
     
     if generate_wordcloud:

@@ -47,7 +47,7 @@ def update_download_links(directory: str):
                     # Generate the new filename and link
                     new_filename = re.sub(r'[ \[\]\(\)#]', '_', old_filename)
                     new_link = re.sub(r'[ \[\]\(\)#]', '_', old_link)
-                    if new_link.startswith('../../'):
+                    if new_link.startswith('../'):
                         new_link = new_link[3:]
                     # Replace with HTML download link
                     updated_content = re.sub(

@@ -51,7 +51,7 @@ def update_download_links(directory: str):
                     # Replace with HTML download link
                     updated_content = re.sub(
                         r'<!-- tcd_download_link -->.*?<!-- tcd_download_link_end -->',
-                        f'<!-- tcd_download_link -->\n下载: <a href="{new_link}" download>{new_filename}</a>\n<!-- tcd_download_link_end -->',
+                        f'<!-- tcd_download_link -->\n下载: <a href="../{new_link}" download>{new_filename}</a>\n<!-- tcd_download_link_end -->',
                         content,
                         flags=re.DOTALL
                     )

@@ -7,7 +7,7 @@ def extract_metadata_from_markdown(file_path):
                 content = f.read()
         except:
             print("cannot open page, skip image " + file_path)
-            retunr None, None, None
+            return None, None, None
         # Extract description from abstract
         desc_match = re.search(
             r'<!-- tcd_abstract -->\n(.*?)\n<!-- tcd_abstract_end -->',

@@ -29,24 +29,29 @@ def update_download_links(directory: str):
                 with open(file_path, 'r', encoding='utf-8') as file:
                     content = file.read()
                 
-                # Extract the old link pattern
+                # Extract the old link pattern - support both Markdown and HTML links
                 match = re.search(
-                    r'<!-- tcd_download_link -->\s*.*\[(.*?)\]\((.*?)\)\s*<!-- tcd_download_link_end -->',
+                    r'<!-- tcd_download_link -->\s*.*(?:\[(.*?)\]\((.*?)\)|<a href="(.*?)".*?>(.*?)</a>)\s*<!-- tcd_download_link_end -->',
                     content
                 )
                 
                 if match:
-                    old_filename = match.group(1)
-                    old_link = match.group(2)
+                    # Handle both Markdown and HTML matches
+                    if match.group(1) and match.group(2):  # Markdown format
+                        old_filename = match.group(1)
+                        old_link = match.group(2)
+                    else:  # HTML format
+                        old_filename = match.group(4)
+                        old_link = match.group(3)
 
                     # Generate the new filename and link
                     new_filename = re.sub(r'[ \[\]\(\)#]', '_', old_filename)
                     new_link = re.sub(r'[ \[\]\(\)#]', '_', old_link)
 
-                    # Replace the old link block with the new link block
+                    # Replace with HTML download link
                     updated_content = re.sub(
                         r'<!-- tcd_download_link -->.*?<!-- tcd_download_link_end -->',
-                        f"<!-- tcd_download_link -->\n下载: [{new_filename}]({new_link})\n<!-- tcd_download_link_end -->",
+                        f'<!-- tcd_download_link -->\n下载: <a href="{new_link}" download>{new_filename}</a>\n<!-- tcd_download_link_end -->',
                         content,
                         flags=re.DOTALL
                     )

@@ -134,6 +134,30 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
 
         if "tcd_main_text" in content:
             print("skip because already exists")
+            # Only remove files if they were successfully embedded before
+            if remove_original:
+                doc_filename = None
+                for filename in file_mapping.keys():
+                    if file_mapping[filename] == os.path.basename(filepath):
+                        doc_filename = filename
+                        break
+                
+                if doc_filename and not doc_filename.lower().endswith('.pdf'):
+                    doc_path = os.path.join(base_dir, doc_filename)
+                    if os.path.exists(doc_path):
+                        os.remove(doc_path)
+                        print(f"Removed original file: {doc_path}")
+                
+                # Remove download link section and rename file
+                new_filepath = filepath.replace("_page.md", ".md")
+                start = content.find('<!-- tcd_download_link -->')
+                end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
+                if start >= 0 and end >= 0:
+                    new_content = content[:start] + content[end:]
+                    with open(new_filepath, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                    os.remove(filepath)
+                    print(f"Removed download link and renamed: {filepath} -> {new_filepath}")
             return
         
         if not match:
@@ -167,16 +191,22 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
         
         # Refactored to check file types first
         if doc_filename.lower().endswith('.pdf'):
-            # PDF preview
+            # PDF preview - don't remove original PDF file
             converted_text = create_pdf_preview_section(doc_filename)
+            remove_this_file = False
         elif doc_filename.lower().endswith('.docx') or doc_filename.lower().endswith('.doc') or doc_filename.lower().endswith('.txt'):
-            # Use the existing text conversion
+            # Text conversion
             converted_text = convert_doc_to_text(doc_path)
-            if not remove_original:
-                converted_text = check_text_length_and_add_notice(converted_text)
-            # Clean control sequences instead of escaping
-            converted_text = clean_control_sequences(converted_text)
+            if converted_text:
+                if not remove_original:
+                    converted_text = check_text_length_and_add_notice(converted_text)
+                converted_text = clean_control_sequences(converted_text)
+                remove_this_file = remove_original
+            else:
+                print(f"Failed to convert {doc_path}")
+                return
         else:
+            remove_this_file = False
             print("Unsupported file type. Skipping.")
             return
         
@@ -193,24 +223,21 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
 
 '''
         
-        # Use string replacement instead of regex for substitution
-        start = content.find('<!-- tcd_download_link -->')
-        end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
-        if start >= 0 and end >= 0:
-            old_file_path = filepath
-            if remove_original:
-                filepath = filepath.replace("_page.md", ".md")
+        # Only remove files if they were successfully embedded
+        if remove_this_file:
+            os.remove(doc_path)
+            print(f"Removed original file: {doc_path}")
+            
+            # Remove download link section and rename file
+            start = content.find('<!-- tcd_download_link -->')
+            end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
+            if start >= 0 and end >= 0:
                 new_content = content[:start] + content[end:] + new_section
-            else:
-                new_content = content + new_section
-            new_content = new_content.replace("## 其他信息\n", "## 其他信息 [Processed Page Metadata]\n")
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-            print(f"Successfully processed: {filepath}")
-            if remove_original:
-                os.remove(doc_path)
-                os.remove(old_file_path)
-        
+                new_filepath = filepath.replace("_page.md", ".md")
+                with open(new_filepath, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                os.remove(filepath)
+                print(f"Removed download link and renamed: {filepath} -> {new_filepath}")
         
     except Exception as e:
         print(f"Error processing {filepath}: {e}")

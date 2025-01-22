@@ -182,7 +182,7 @@ def process_directory(directory, ignore_regexes, include_wordcloud=False):
             toc_content.append('\n\n### 词云图 { data-search-exclude }\n' + f'\n![{directory}摘要词云图](abstracts_wordcloud.png)\n')
     
     # Add auto-generated note
-    toc_content.append("\n> 本内容为自动生成，请修改 .github/ 目录下的对应脚本或者模板\n")
+    toc_content.append("\n> 目录及摘要为自动生成，仅供索引和参考，请修改 .github/ 目录下的对应脚本、模板或对应文件以更正。\n")
     
     toc = "\n".join(toc_content)
     

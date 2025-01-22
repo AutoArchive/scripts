@@ -1,8 +1,14 @@
 import re
 import os
 
+def ensure_https_link(link):
+    """Convert links starting with // to https:// format."""
+    if link.startswith('//'):
+        return f'https:{link}'
+    return link
+
 def clean_base64_from_markdown(file_path):
-    """Convert base64 image data in markdown file to text links."""
+    """Convert base64 image data in markdown file to text links and fix // links."""
     try:
         # Read the markdown file
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -19,6 +25,16 @@ def clean_base64_from_markdown(file_path):
             return '[图片]'  # Default text if no alt text is found
             
         cleaned_content = re.sub(pattern, replace_with_link, content)
+        
+        # Fix only links that start with //
+        link_pattern = r'\[([^\]]+)\]\(//[^)]+\)'
+        def fix_link(match):
+            text, link = match.group(0).split('](')
+            link = link[:-1]  # remove the closing parenthesis
+            fixed_link = ensure_https_link(link)
+            return f'{text}]({fixed_link})'
+            
+        cleaned_content = re.sub(link_pattern, fix_link, cleaned_content)
         
         # Write back to file
         with open(file_path, 'w', encoding='utf-8') as f:

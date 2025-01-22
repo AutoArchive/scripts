@@ -67,13 +67,13 @@ def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     scripts = [
         ('python .github/scripts/file/rename.py', 'File renaming'),
         ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
-        ('python .github/scripts/ai/archive/gen_dir_meta.py', 'Directory meta generation'),
         ('python .github/scripts/others/catalog.py', 'Global catalog generation'),
         ('python .github/scripts/others/get_md5_list.py', 'MD5 list generation'),
         ('python .github/scripts/page/gen_page.py', 'Page generation'),
         ('python .github/scripts/others/add_search_exclude.py', 'Search exclude addition'),
         ('python .github/scripts/ai/archive/gen_file_meta.py', 'File meta generation'),
         ('python .github/scripts/file/add_config_from_page.py', 'Metadata addition'),
+        ('python .github/scripts/ai/archive/gen_dir_meta.py', 'Directory meta generation'),
     ]
     
     if generate_wordcloud:

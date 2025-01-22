@@ -14,8 +14,8 @@ def clean_base64_from_markdown(file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Pattern to match markdown image with base64 data
-        pattern = r'!\[([^\]]*)\]\(data:image/png;base64,[A-Za-z0-9+/=]+\)'
+        # Pattern to match any markdown image with base64 data
+        pattern = r'!\[([^\]]*)\]\(data:image/[^;]+;base64,[A-Za-z0-9+/=]+\)'
         
         # Replace base64 content with text link, keeping the alt text
         def replace_with_link(match):

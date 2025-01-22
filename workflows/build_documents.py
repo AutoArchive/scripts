@@ -66,6 +66,7 @@ def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     """Get the list of scripts for webpage building"""
     scripts = [
         ('python .github/scripts/file/rename.py', 'File renaming'),
+        ('python .github/scripts/file/clean_markdown.py', 'Clean markdown'),
         ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
         ('python .github/scripts/others/catalog.py', 'Global catalog generation'),
         ('python .github/scripts/others/get_md5_list.py', 'MD5 list generation'),

@@ -47,18 +47,23 @@ def main():
     for root, _, files in os.walk(workspace_dir):
         for file in files:
             if not file.endswith('.md'):
+                print(f"Skipping {file} because it's not a markdown file")
                 continue
 
             file_path = os.path.join(root, file)
             
             # Skip files that are already in target directories
-            if any(mapping['dir'] in file_path for mapping in config['url_mappings']):
-                continue
+            # if any(mapping['dir'] in file_path for mapping in config['url_mappings']):
+            #     print(f"Skipping {file} because it's already in the target directory")
+            #     continue
 
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             url = extract_original_url(content)
+            if not url:
+                print(f"No original URL found for {file}")
+                continue
             target_dir = get_target_dir(url, config)
             target_dir_path = target_dir
             

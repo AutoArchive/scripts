@@ -222,22 +222,27 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
 <!-- tcd_main_text_end -->
 
 '''
-        
-        # Only remove files if they were successfully embedded
+
+        # Prepare updated content
+        start = content.find('<!-- tcd_download_link -->')
+        end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
+        new_content = content
+        if start >= 0 and end >= 0:
+            new_content = content[:start] + content[end:] + new_section
+
         if remove_this_file:
             os.remove(doc_path)
             print(f"Removed original file: {doc_path}")
-            
-            # Remove download link section and rename file
-            start = content.find('<!-- tcd_download_link -->')
-            end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
-            if start >= 0 and end >= 0:
-                new_content = content[:start] + content[end:] + new_section
-                new_filepath = filepath.replace("_page.md", ".md")
-                with open(new_filepath, 'w', encoding='utf-8') as f:
-                    f.write(new_content)
-                os.remove(filepath)
-                print(f"Removed download link and renamed: {filepath} -> {new_filepath}")
+            new_filepath = filepath.replace("_page.md", ".md")
+            with open(new_filepath, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            os.remove(filepath)
+            print(f"Removed download link and renamed: {filepath} -> {new_filepath}")
+        else:
+            # Write new content in-place
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            print(f"Embedded text in: {filepath}")
         
     except Exception as e:
         print(f"Error processing {filepath}: {e}")

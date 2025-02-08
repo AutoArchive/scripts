@@ -1,5 +1,6 @@
 import os
 import re
+import yaml
 
 def rename_files_in_directory(directory: str):
     """Recursively rename files in the directory to remove spaces and special characters."""
@@ -20,47 +21,72 @@ def rename_files_in_directory(directory: str):
                 print(f"Renamed: {old_file_path} -> {new_file_path}")
 
 def update_download_links(directory: str):
-    """Update download links in markdown files dynamically."""
+    """Update download links in markdown files based on config.yml."""
+    # Keep track of processed config files to avoid duplicates
+    processed_configs = set()
+    
     for root, _, files in os.walk(directory):
-        for filename in files:
-            if filename.endswith("_page.md"):
-                file_path = os.path.join(root, filename)
+        if 'config.yml' in files:
+            config_path = os.path.join(root, 'config.yml')
+            
+            # Skip if we've already processed this config
+            if config_path in processed_configs:
+                continue
                 
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    content = file.read()
+            processed_configs.add(config_path)
+            print(f"Processing config.yml at: {config_path}")
+            
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f)
+                    
+                if not config or 'files' not in config:
+                    print(f"No files section in config at {config_path}")
+                    continue
+                    
+                print(f"Found {len(config['files'])} files in config")
                 
-                # Extract the old link pattern - support both Markdown and HTML links
-                match = re.search(
-                    r'<!-- tcd_download_link -->\s*.*(?:\[(.*?)\]\((.*?)\)|<a href="(.*?)".*?>(.*?)</a>)\s*<!-- tcd_download_link_end -->',
-                    content
-                )
+                # Create a mapping of page files to their corresponding filenames
+                page_to_filename = {}
+                for file_entry in config['files']:
+                    if 'page' in file_entry and 'filename' in file_entry:
+                        page_path = os.path.join(root, file_entry['page'])
+                        page_to_filename[page_path] = file_entry['filename']
                 
-                if match:
-                    # Handle both Markdown and HTML matches
-                    if match.group(1) and match.group(2):  # Markdown format
-                        old_filename = match.group(1)
-                        old_link = match.group(2)
-                    else:  # HTML format
-                        old_filename = match.group(4)
-                        old_link = match.group(3)
+                # Update links in all markdown files found in config
+                for page_path, new_filename in page_to_filename.items():
+                    if os.path.exists(page_path):
+                        try:
+                            with open(page_path, 'r', encoding='utf-8') as file:
+                                content = file.read()
 
-                    # Generate the new filename and link
-                    new_filename = re.sub(r'[ \[\]\(\)#]', '_', old_filename)
-                    new_link = re.sub(r'[ \[\]\(\)#]', '_', old_link)
-                    if new_link.startswith('../'):
-                        new_link = new_link[3:]
-                    # Replace with HTML download link
-                    updated_content = re.sub(
-                        r'<!-- tcd_download_link -->.*?<!-- tcd_download_link_end -->',
-                        f'<!-- tcd_download_link -->\n下载: <a href="../{new_link}" download>{new_filename}</a>\n<!-- tcd_download_link_end -->',
-                        content,
-                        flags=re.DOTALL
-                    )
+                            # Extract the old link pattern - support both Markdown and HTML links
+                            match = re.search(
+                                r'<!-- tcd_download_link -->\s*.*(?:\[(.*?)\]\((.*?)\)|<a href="(.*?)".*?>(.*?)</a>)\s*<!-- tcd_download_link_end -->',
+                                content,
+                                flags=re.DOTALL
+                            )
+                            
+                            if match:
+                                # Replace with HTML download link
+                                updated_content = re.sub(
+                                    r'<!-- tcd_download_link -->.*?<!-- tcd_download_link_end -->',
+                                    f'<!-- tcd_download_link -->\n下载: <a href="../{new_filename}" download>{new_filename}</a>\n<!-- tcd_download_link_end -->',
+                                    content,
+                                    flags=re.DOTALL
+                                )
 
-                    if content != updated_content:
-                        with open(file_path, 'w', encoding='utf-8') as file:
-                            file.write(updated_content)
-                        print(f"Updated links in: {file_path}")
+                                if content != updated_content:
+                                    with open(page_path, 'w', encoding='utf-8') as file:
+                                        file.write(updated_content)
+                                    print(f"Updated links in: {page_path}")
+                        except Exception as e:
+                            print(f"Error processing file {page_path}: {e}")
+                    else:
+                        print(f"Warning: Page file not found: {page_path}")
+                        
+            except Exception as e:
+                print(f"Error processing config at {config_path}: {e}")
 
 def main():
     directory = '.'  # Change this to the directory you want to process
@@ -68,4 +94,4 @@ def main():
     update_download_links(directory)
 
 if __name__ == "__main__":
-    main()
+    main() 

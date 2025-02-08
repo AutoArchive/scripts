@@ -223,14 +223,11 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
 
 '''
 
-        # Prepare updated content
-        start = content.find('<!-- tcd_download_link -->')
-        end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
-        new_content = content
-        if start >= 0 and end >= 0:
-            new_content = content[:start] + content[end:] + new_section
-
         if remove_this_file:
+            # Remove download link and rename file when remove_original is True
+            start = content.find('<!-- tcd_download_link -->')
+            end = content.find('<!-- tcd_download_link_end -->') + len('<!-- tcd_download_link_end -->')
+            new_content = content[:start] + content[end:] + new_section
             os.remove(doc_path)
             print(f"Removed original file: {doc_path}")
             new_filepath = filepath.replace("_page.md", ".md")
@@ -239,7 +236,8 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
             os.remove(filepath)
             print(f"Removed download link and renamed: {filepath} -> {new_filepath}")
         else:
-            # Write new content in-place
+            # Keep download link when remove_original is False
+            new_content = content + new_section
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(new_content)
             print(f"Embedded text in: {filepath}")

@@ -134,6 +134,7 @@ def update_files(root_dir, output_path):
                         'format': file_entry.get('format', 'Unknown'),
                         'size': file_entry.get('size', 0),
                         'md5': file_entry.get('md5', ''),
+                        'filename': file_entry.get('filename', ''),
                         'link': '',
                         'description': os.path.join(root, file_entry.get('name')),
                         'archived date': '未知',
@@ -141,7 +142,9 @@ def update_files(root_dir, output_path):
                         'author': '未知',
                         'date': '未知',
                         'region': '未知',
-                        'tags': ['binary']
+                        'tags': ['binary'],
+                        'visitor': 0,
+                        'download': 0,
                     }
 
                     if is_binary_file(page_path):

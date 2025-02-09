@@ -68,10 +68,15 @@ def update_download_links(directory: str):
                             )
                             
                             if match:
-                                # Replace with HTML download link
+                                # Replace with download link and online reading link for txt files
+                                download_link = f'下载: <a href="../{new_filename}" download>{new_filename}</a>'
+                                online_read_link = ''
+                                if new_filename.lower().endswith('.txt'):
+                                    online_read_link = f'\n<a href="../{new_filename}" download onclick="this.href=\'https://app.webnovel.win/?add=\'+encodeURIComponent(this.getAttribute(\'href\'))">在线阅读 {new_filename}</a>'
+                                
                                 updated_content = re.sub(
                                     r'<!-- tcd_download_link -->.*?<!-- tcd_download_link_end -->',
-                                    f'<!-- tcd_download_link -->\n下载: <a href="../{new_filename}" download>{new_filename}</a>\n<!-- tcd_download_link_end -->',
+                                    f'<!-- tcd_download_link -->\n{download_link}\n\n{online_read_link}\n<!-- tcd_download_link_end -->',
                                     content,
                                     flags=re.DOTALL
                                 )

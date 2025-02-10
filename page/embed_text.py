@@ -88,6 +88,9 @@ def clean_control_sequences(text):
     text = re.sub(r'\\*\s*\[*\.?一次购买\.*\]*', '', text)
     text = re.sub(r'\\*\s*\[*\.?以及备用QQ\.*\]*', '', text)
     text = re.sub(r'\\*\s*\[*\.?漫画视频账号\.*\]*', '', text)
+
+    # strip '#' in all lines
+    text = re.sub(r'#', '', text)
     
     # Split into lines
     lines = text.split('\n')

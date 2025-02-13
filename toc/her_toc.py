@@ -253,7 +253,7 @@ class TOCGenerator:
         if entry is None:
             return ''
         
-        def truncate_text(text, length=50):
+        def truncate_text(text, length=20):
             """Helper function to truncate text and add ellipsis if needed"""
             if not text:
                 return ""

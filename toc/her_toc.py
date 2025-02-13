@@ -273,7 +273,7 @@ class TOCGenerator:
             description_html = ''
             if entry['description']:
                 summary = truncate_text(entry['description'])
-                description_html = f'''<details>
+                description_html = f'''<details markdown>
                     <summary>{summary}</summary>
                     <div class="description">
                         {entry['description']}
@@ -293,7 +293,7 @@ class TOCGenerator:
             description_html = ''
             if entry['description']:
                 summary = truncate_text(entry['description'])
-                description_html = f'''<details>
+                description_html = f'''<details markdown>
                     <summary>{summary}</summary>
                     <div class="description">
                         {entry['description']}

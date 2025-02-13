@@ -27,6 +27,9 @@ class TOCGenerator:
         
         # Add GA data processing
         self.ga_data = self._load_ga_data()
+        
+        # Initialize current directory
+        self.current_directory = '.'
 
     def generate_categorized_toc(self, categories):
         """Generate TOC from categorized content"""
@@ -61,6 +64,9 @@ class TOCGenerator:
         if is_ignored(directory, ignore_regexes):
             print(f"Skipping ignored directory: {directory}")
             return
+
+        # Update current directory
+        self.current_directory = directory
 
         config_path = os.path.join(directory, 'config.yml')
         if not os.path.exists(config_path):
@@ -365,10 +371,12 @@ class TOCGenerator:
             data = '\n'.join(lines[start_idx:])
             df = pd.read_csv(StringIO(data))
             
+            # Clean up GA paths - remove leading/trailing slashes and _page suffix
+            df['clean_path'] = df['Page path and screen class'].apply(lambda x: 
+                x.strip('/') if isinstance(x, str) else '')
+            
             # Sort by views and get top entries
             df = df.sort_values('Views', ascending=False)
-            print("\nDebug: Top 5 GA entries:")
-            print(df[['Page path and screen class', 'Views']].head())
             return df
         except Exception as e:
             print(f"Warning: Failed to load GA data: {e}")
@@ -380,15 +388,14 @@ class TOCGenerator:
             print("Debug: No GA data or no entries")
             return []
             
-        entries = []
-        print(f"\nDebug: Processing top {limit} GA entries")
-        for _, row in self.ga_data.head(limit).iterrows():
-            # Normalize GA path: remove leading/trailing slashes and _page suffix
-            ga_path = row['Page path and screen class'].strip('/')
-            if ga_path.endswith('_page'):
-                ga_path = ga_path[:-5]
+        all_matches = []  # Store all matches first
+        root_dir = os.path.abspath('.')
+        
+        for _, row in self.ga_data.iterrows():
+            ga_path = row['clean_path']
             views = int(row['Views'])
-            print(f"\nLooking for path: {ga_path} ({views:,} views)")
+            if ga_path == '':
+                continue
             
             # Find matching content entry
             matching_entry = None
@@ -396,38 +403,44 @@ class TOCGenerator:
                 if 'entry_data' not in entry or 'current_dir' not in entry:
                     continue
                     
-                # Build and normalize entry path
-                entry_path = os.path.join(
-                    entry['current_dir'], 
-                    entry['entry_data'].get('link', '')
-                ).strip('/')
-                # Remove ./ prefix if exists
-                if entry_path.startswith('./'):
-                    entry_path = entry_path[2:]
-                    
-                print(f"  Comparing with normalized path: {entry_path}")
+                # Get the link and normalize it
+                entry_link = entry['entry_data'].get('link', '')
+                if entry_link.endswith('.md'):
+                    entry_link = entry_link[:-3]
+                
+                # Join path parts and normalize
+                entry_path = entry_link
+                
+                if ga_path.startswith('/futa'):
+                    print(f"  Comparing GA path: {ga_path}")
+                    print(f"  With entry path: {entry_path}")
                 
                 # Try exact match
                 if ga_path == entry_path:
-                    print(f"    Found exact match!")
+                    print(f"    Found exact match! {entry_path}")
                     matching_entry = entry
                     break
             
             if matching_entry:
-                print(f"  Matched with: {matching_entry['entry_data']['name']}")
-                entries.append({
+                # Calculate relative link from current directory
+                rel_link = os.path.relpath(
+                    os.path.join(matching_entry['current_dir'], matching_entry['entry_data']['link']),
+                    self.current_directory
+                ).replace(os.sep, '/')
+                
+                all_matches.append({
                     'name': matching_entry['entry_data']['name'],
-                    'link': os.path.relpath(
-                        os.path.join(matching_entry['current_dir'], matching_entry['entry_data']['link']),
-                        self.current_directory
-                    ),
+                    'link': rel_link,
                     'views': views
                 })
-            else:
-                print("  No match found")
-                
-        print(f"\nDebug: Found {len(entries)} matches total")
-        return entries
+        
+        # Sort all matches by views and get top entries
+        sorted_matches = sorted(all_matches, key=lambda x: x['views'], reverse=True)
+        top_entries = sorted_matches[:limit]
+        
+        print(f"\nDebug: Found {len(all_matches)} matches total")
+        print(f"Returning top {len(top_entries)} entries")
+        return top_entries
 
     def _format_most_visited(self, entries):
         """Format most visited entries as a list"""

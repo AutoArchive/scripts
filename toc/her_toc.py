@@ -243,7 +243,7 @@ class TOCGenerator:
             if link.endswith('.md'):
                 link = link[:-3]
                 
-            content.append(f"- {date} [{entry_data['name']}]({link})")
+            content.append(f"    * {date} [{entry_data['name']}]({link})")
         
         content.append("\n")
         return "\n".join(content)
@@ -411,10 +411,6 @@ class TOCGenerator:
                 # Join path parts and normalize
                 entry_path = entry_link
                 
-                if ga_path.startswith('/futa'):
-                    print(f"  Comparing GA path: {ga_path}")
-                    print(f"  With entry path: {entry_path}")
-                
                 # Try exact match
                 if ga_path == entry_path:
                     print(f"    Found exact match! {entry_path}")
@@ -452,7 +448,7 @@ class TOCGenerator:
             name = entry['name']
             link = entry['link']
             views = entry['views']
-            content.append(f"- {views:,} 访问 [{name}]({link})")
+            content.append(f"    * {views:,} 访问 [{name}]({link})")
         
         content.append("\n")
         return "\n".join(content)

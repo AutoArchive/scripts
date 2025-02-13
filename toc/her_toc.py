@@ -1,231 +1,151 @@
 #!/usr/bin/env python3
 import os
 import yaml
-from pathlib import Path
-import subprocess
-import re
-import requests
-import json
 import argparse
 from utils import *
+from entry_generators import *
+from content_processors import *
 
-def generate_file_entry(file_info, directory='.'):
-    """Generate markdown entry for a file with metadata."""
-    name = file_info.get('name', 'Unknown') or 'Unknown'
-    filename = file_info.get('filename', 'Unknown') or 'Unknown'
-    file_type = file_info.get('type', 'Unknown') or 'Unknown'
-    
-    page_link = file_info.get('page', filename) if file_type != 'image' else filename
-    entry = ""
-    
-    if file_type == 'image':
-        entry = f"\n![{name}]({filename})\n"
-    else:
-        entry = f"\n\n[{name}]({page_link})"
+class TOCGenerator:
+    """Generates table of contents for directories and files"""
+    def __init__(self):
+        # Initialize generators and processors
+        self.file_generator = FileEntryGenerator()
+        self.dir_generator = DirectoryEntryGenerator()
+        self.independence_generator = IndependenceEntryGenerator()
         
-        # Extract metadata if page exists
-        if page := file_info.get('page'):
-            page_path = os.path.join(directory, page)
-            if os.path.exists(page_path):
-                year, archived_date, description = extract_metadata_from_markdown(page_path)
-                if description:
-                    entry += f"<details><summary>查看摘要</summary>\n\n{description}\n</details>\n\n"
-                file_info['year'] = year or 'Unknown'
-                file_info['archived_date'] = archived_date or '9999-12-31'
-                
-    return entry
-
-def generate_categorized_file_toc(files, directory='.'):
-    """Generate TOC for files, categorized by type and year."""
-    categories = {
-        'document': {}, 'image': {}, 'video': {},
-        'audio': {}, 'webpage': {}, 'other': {}
-    }
-    
-    # Sort and categorize
-    for file_info in sorted(files, key=lambda x: natural_sort_key(x['name'])):
-        file_type = file_info['type']
-        entry = generate_file_entry(file_info, directory)
-        year = file_info.get('year', '0000') if file_info.get('year') != 'Unknown' else '0000'
+        self.files_processor = FilesProcessor(self.file_generator)
+        self.dir_processor = DirectoryProcessor(self.dir_generator)
+        self.independence_processor = IndependenceProcessor(self.independence_generator)
         
-        if year not in categories[file_type]:
-            categories[file_type][year] = []
-            
-        archived_date = file_info.get('archived_date', '9999-12-31')
-        categories[file_type][year].append((entry, archived_date))
-    
-    # Generate TOC
-    toc = []
-    type_names = {
-        'document': '📄 文档', 'image': '🖼️ 图片',
-        'video': '🎬 视频', 'audio': '🎵 音频',
-        'webpage': '🌐 网页', 'other': '📎 其他'
-    }
-    
-    # 改进排序逻辑
-    def sort_key(entry_tuple):
-        entry, date = entry_tuple
-        if date is None:
-            return '9999-12-31'
-        return date
-    
-    for file_type, years in categories.items():
-        if years:
-            toc.append(f"\n### {type_names[file_type]}\n")
-            for year in sorted(years.keys(), reverse=True):
-                if years[year]:
-                    display_year = '时间未知，按收录顺序排列' if year == '0000' else year
-                    toc.append(f"\n#### {display_year}\n")
-                    
-                    # 使用新的排序逻辑
-                    sorted_entries = sorted(years[year], key=sort_key)
-                    toc.extend(entry for entry, _ in sorted_entries)
-    
-    return "\n".join(toc)
-
-def process_independence_entries(ignore_regexes):
-    """Process independence entries from independence_repo.json."""
-    entries = []
-    json_path = 'independence_repo.json'
-    
-    try:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            independence_data = json.loads(f.read())
-            
-        for entry in independence_data:
-            name = entry.get('name', '')
-            url = entry.get('url', '')
-            size = entry.get('size', 0)
-            
-            if name and url and size:
-                entries.append(f"- [{name}: {url}]({url}) ({size} 篇内容)")
-            else:
-                print(f"Warning: Invalid entry data in independence_repo.json")
-                
-        return entries
-    except FileNotFoundError:
-        print(f"Warning: independence_repo.json not found")
-        return []
-    except json.JSONDecodeError:
-        print(f"Warning: Failed to parse independence_repo.json")
-        return []
-
-def process_directory(directory, ignore_regexes, include_wordcloud=False):
-    """Process a directory to generate README.md based on config.yml."""
-    if is_ignored(directory, ignore_regexes):
-        print(f"Skipping ignored directory: {directory}")
-        return
-
-    config_path = os.path.join(directory, 'config.yml')
-    if not os.path.exists(config_path):
-        print(f"Warning: No config.yml found in {directory}")
-        return
-    
-    # Read config
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    
-    # Generate TOC content
-    toc_content = []
-    
-    # Add description if available
-    if 'description' in config:
-        toc_content.append(f"{config['description']}\n")
+    def generate_categorized_toc(self, categories):
+        """Generate TOC from categorized content"""
+        toc = []
+        type_names = {
+            'document': '📄 文档', 'image': '🖼️ 图片',
+            'video': '🎬 视频', 'audio': '🎵 音频',
+            'webpage': '🌐 网页', 'other': '📎 其他'
+        }
         
-    # Add tags if available
-    if 'tags' in config and config['tags']:
-        toc_content.append("\n标签: " + ", ".join([f"`{tag}`" for tag in config['tags']]) + "\n")
+        def sort_key(entry_tuple):
+            entry, date = entry_tuple
+            return date if date else '9999-12-31'
+        
+        for file_type, years in categories.items():
+            if years:
+                toc.append(f"\n### {type_names[file_type]}\n")
+                for year in sorted(years.keys(), reverse=True):
+                    if years[year]:
+                        display_year = '时间未知，按收录顺序排列' if year == '0000' else year
+                        toc.append(f"\n#### {display_year}\n")
+                        sorted_entries = sorted(years[year], key=sort_key)
+                        toc.extend(entry for entry, _ in sorted_entries)
+        
+        return "\n".join(toc)
 
-    # Add one line total count
-    total_count = count_files_recursive(directory, ignore_regexes)
-    toc_content.append(f"\n总计 {total_count} 篇内容\n\n")
+    def process_directory(self, directory, ignore_regexes, include_wordcloud=False):
+        """Process a directory to generate README.md based on config.yml"""
+        if is_ignored(directory, ignore_regexes):
+            print(f"Skipping ignored directory: {directory}")
+            return
 
-    # Add subdirectories section
-    if config.get('subdirs'):
-        toc_content.append("### 📁 子目录\n")
-        for subdir in sorted(config['subdirs']):
+        config_path = os.path.join(directory, 'config.yml')
+        if not os.path.exists(config_path):
+            print(f"Warning: No config.yml found in {directory}")
+            return
+        
+        # Read config and generate content
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+            
+        toc_content = self._generate_toc_content(config, directory, ignore_regexes, include_wordcloud)
+        
+        # Generate and write README
+        self._write_readme(directory, config, toc_content)
+        
+        # Process subdirectories
+        for subdir in config.get('subdirs', []):
             subdir_path = os.path.join(directory, subdir)
-            if is_ignored(subdir_path, ignore_regexes):
-                continue
-            file_count = count_files_recursive(subdir_path, ignore_regexes)
-            subdir_config_path = os.path.join(subdir_path, 'config.yml')
-            entry = f"- [{subdir}]({subdir}) ({file_count} 篇内容)"
-            
-            # Add details/summary if subdir has config.yml with description
-            if os.path.exists(subdir_config_path):
-                with open(subdir_config_path, 'r', encoding='utf-8') as f:
-                    subdir_config = yaml.safe_load(f)
-                    if description := subdir_config.get('description'):
-                        entry += f"\n  <details><summary>内容简介</summary>\n\n  {description}\n  </details>"
-            
-            toc_content.append(entry)
-        toc_content.append("")
+            self.process_directory(subdir_path, ignore_regexes, include_wordcloud)
 
-    # Process independence entries (replacing .conf files)
-    if directory == '.':  # Only process independence entries in root directory
-        independence_entries = process_independence_entries(ignore_regexes)
-        if independence_entries:
-            toc_content.append("### 📚 独立档案库与网站\n")
-            toc_content.extend(independence_entries)
+    def _generate_toc_content(self, config, directory, ignore_regexes, include_wordcloud):
+        """Generate the TOC content for a directory"""
+        toc_content = []
+        
+        # Add basic information
+        if 'description' in config:
+            toc_content.append(f"{config['description']}\n")
+        if 'tags' in config and config['tags']:
+            toc_content.append("\n标签: " + ", ".join([f"`{tag}`" for tag in config['tags']]) + "\n")
+            
+        total_count = count_files_recursive(directory, ignore_regexes)
+        toc_content.append(f"\n总计 {total_count} 篇内容\n\n")
+
+        # Process directories
+        if config.get('subdirs'):
+            toc_content.append("### 📁 子目录\n")
+            dir_entries = self.dir_processor.process(config['subdirs'], directory, ignore_regexes)
+            toc_content.extend(dir_entries)
             toc_content.append("")
 
-    # Add files section
-    if config.get('files'):
-        files_toc = generate_categorized_file_toc(config['files'], directory)
-        if files_toc:
-            toc_content.append(files_toc)
-    
-    # Add wordcloud if enabled and exists
-    if include_wordcloud:
-        wordcloud_path = os.path.join(directory, 'abstracts_wordcloud.png')
-        if os.path.exists(wordcloud_path):
-            toc_content.append('\n\n### 词云图 { data-search-exclude }\n' + f'\n![{directory}摘要词云图](abstracts_wordcloud.png)\n')
-    
-    # Add auto-generated note
-    toc_content.append("\n> 目录及摘要为自动生成，仅供索引和参考，请修改 .github/ 目录下的对应脚本、模板或对应文件以更正。\n")
-    
-    toc = "\n".join(toc_content)
-    
-    exclude_marker = """---
+        # Process independence entries
+        if directory == '.':
+            independence_entries = self.independence_processor.process()
+            if independence_entries:
+                toc_content.append("### 📚 独立档案库与网站\n")
+                toc_content.extend(independence_entries)
+                toc_content.append("")
+
+        # Process files
+        if config.get('files'):
+            categories = self.files_processor.process(config['files'], directory)
+            files_toc = self.generate_categorized_toc(categories)
+            if files_toc:
+                toc_content.append(files_toc)
+        
+        # Add wordcloud if enabled
+        if include_wordcloud:
+            wordcloud_path = os.path.join(directory, 'abstracts_wordcloud.png')
+            if os.path.exists(wordcloud_path):
+                toc_content.append('\n\n### 词云图 { data-search-exclude }\n' + 
+                                 f'\n![{directory}摘要词云图](abstracts_wordcloud.png)\n')
+        
+        # Add auto-generated note
+        toc_content.append("\n> 目录及摘要为自动生成，仅供索引和参考，请修改 .github/ 目录下的对应脚本、模板或对应文件以更正。\n")
+        
+        return "\n".join(toc_content)
+
+    def _write_readme(self, directory, config, toc_content):
+        """Write the README.md file"""
+        exclude_marker = """---
 search:
   exclude: true
 ---
 
 
 """
-
-    # Generate README content
-    template_path = get_template_path(directory)
-    if template_path:
-        with open(template_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        updated_content = content.replace('{{TABLE_OF_CONTENTS}}', toc)
-    else:
-        dir_name = config.get('name', os.path.basename(directory))
-        updated_content = exclude_marker + f"# {dir_name}\n\n{toc}"
-    
-    # Write README.md
-    readme_path = os.path.join(directory, 'README.md')
-    with open(readme_path, 'w', encoding='utf-8') as f:
-        f.write(updated_content)
-    
-    # Process subdirectories
-    for subdir in config.get('subdirs', []):
-        subdir_path = os.path.join(directory, subdir)
-        process_directory(subdir_path, ignore_regexes, include_wordcloud)
-
-def update_project_readme(include_wordcloud=False):
-    """Update README files throughout the project based on config.yml files."""
-    ignore_regexes = load_ignore_patterns()
-    process_directory('.', ignore_regexes, include_wordcloud)
-    print("Table of contents generated successfully!")
+        template_path = get_template_path(directory)
+        if template_path:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            updated_content = content.replace('{{TABLE_OF_CONTENTS}}', toc_content)
+        else:
+            dir_name = config.get('name', os.path.basename(directory))
+            updated_content = exclude_marker + f"# {dir_name}\n\n{toc_content}"
+        
+        readme_path = os.path.join(directory, 'README.md')
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
 
 def main():
     parser = argparse.ArgumentParser(description='Generate table of contents for the project')
     parser.add_argument('--wordcloud', action='store_true', help='Include wordcloud visualizations in the output')
     args = parser.parse_args()
     
-    update_project_readme(include_wordcloud=args.wordcloud)
+    ignore_regexes = load_ignore_patterns()
+    toc_generator = TOCGenerator()
+    toc_generator.process_directory('.', ignore_regexes, args.wordcloud)
+    print("Table of contents generated successfully!")
 
 if __name__ == "__main__":
     main()

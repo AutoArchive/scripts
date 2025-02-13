@@ -36,7 +36,7 @@ class FilesProcessor(ContentProcessor):
             file_type = file_info['type']
             entry_data = self.entry_generator.generate(file_info, directory)
             formatted_entry = self.entry_formatter(entry_data)
-            archived_date = file_info.get('archived_date', '9999-12-31')
+            archived_date = file_info.get('archived_date', '0000-12-31')
             
             # Store all content entries with dates
             if entry_data and entry_data['type'] == 'content':

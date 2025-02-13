@@ -36,10 +36,21 @@ class FilesProcessor(ContentProcessor):
             
             # Store all content entries with dates
             if entry_data and entry_data['type'] == 'content':
+                # Make the link relative to the root directory
+                root_dir = os.path.abspath('.')
+                current_dir = os.path.abspath(directory)
+                rel_dir = os.path.relpath(current_dir, root_dir)
+                
+                # Update the link to be relative to root
+                entry_data['link'] = os.path.normpath(os.path.join(rel_dir, entry_data['link']))
+                entry_data['link'] = entry_data['link'].replace(os.sep, '/')
+                
+                # Store entry with its directory info
                 self.all_entries.append({
                     'entry_data': entry_data,
                     'formatted_entry': formatted_entry,
-                    'archived_date': archived_date
+                    'archived_date': archived_date,
+                    'current_dir': '.'  # Store root as current dir since links are now relative to root
                 })
             
             # Put all entries in '0000' year bucket

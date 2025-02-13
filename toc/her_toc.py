@@ -223,15 +223,20 @@ class TOCGenerator:
         )[:10]
         
         # Use the directory where README is being written
-        current_dir = self.current_directory  # We'll set this in _write_readme
+        current_dir = os.path.relpath(self.current_directory, '.')
+        
         for entry in latest_entries:
             entry_data = entry['entry_data']
             date = entry['archived_date'][:10]  # Get just the date part
-            # Make link relative to current directory
-            link = os.path.relpath(
-                os.path.join(entry['current_dir'], entry_data['link']),
-                current_dir
-            )
+            
+            # Since links are now relative to root, calculate relative to current dir
+            link = os.path.relpath(entry_data['link'], current_dir)
+            link = link.replace(os.sep, '/')
+            
+            # Remove .md extension if present
+            if link.endswith('.md'):
+                link = link[:-3]
+                
             content.append(f"- {date} [{entry_data['name']}]({link})")
         
         content.append("\n")

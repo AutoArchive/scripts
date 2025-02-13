@@ -47,6 +47,7 @@ def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
         ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
         ('python .github/scripts/config/catalog.py', 'Global catalog generation'),
         ('python .github/scripts/config/get_md5_list.py', 'MD5 list generation'),
+        ('python .github/scripts/config/visitor.py', 'Visitor count addition'),
         ('python .github/scripts/page/gen_page.py', 'Page generation'),
         ('python .github/scripts/ai/archive/gen_file_meta.py', 'File meta generation'),
         ('python .github/scripts/file/add_config.py', 'Metadata addition'),

@@ -277,7 +277,7 @@ search:
                 description_html = '无摘要'
             
             return f'''<tr data-name="{entry['name']}" data-year="{entry['year']}" data-date="{entry['date']}">
-                <td><a href="{entry['link']}">{entry['name']}</a></td>
+                <td><a href="{entry['link']}" class="md-button">{entry['name']}</a></td>
                 <td class="year-cell">{entry['year'] if entry['year'] != 'Unknown' else '未知'}</td>
                 <td class="description-cell">{description_html}</td>
             </tr>'''
@@ -296,7 +296,7 @@ search:
                 description_html = '无简介'
             
             return f'''<tr data-name="{entry['name']}" data-count="{entry['count']}" data-date="{entry['date']}">
-                <td><h3><a href="{entry['name']}">{entry['name']}</a></h3></td>
+                <td><a href="{entry['name']}" class="md-button">{entry['name']}</a></td>
                 <td class="count-cell">{entry['count']} 篇</td>
                 <td class="description-cell">{description_html}</td>
             </tr>'''

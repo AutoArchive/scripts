@@ -390,6 +390,14 @@ class TOCGenerator:
             
         all_matches = []  # Store all matches first
         root_dir = os.path.abspath('.')
+        current_dir_abs = os.path.abspath(self.current_directory)
+        
+        # Filter entries to only include those from current directory or its subdirectories
+        current_entries = [
+            entry for entry in self.all_entries 
+            if 'current_dir' in entry and 
+            os.path.abspath(entry['current_dir']).startswith(current_dir_abs)
+        ]
         
         for _, row in self.ga_data.iterrows():
             ga_path = row['clean_path']
@@ -399,8 +407,8 @@ class TOCGenerator:
             
             # Find matching content entry
             matching_entry = None
-            for entry in self.all_entries:
-                if 'entry_data' not in entry or 'current_dir' not in entry:
+            for entry in current_entries:  # Use filtered entries
+                if 'entry_data' not in entry:
                     continue
                     
                 # Get the link and normalize it
@@ -433,7 +441,9 @@ class TOCGenerator:
         # Sort all matches by views and get top entries
         sorted_matches = sorted(all_matches, key=lambda x: x['views'], reverse=True)
         top_entries = sorted_matches[:limit]
-        
+        # add the relative path to the entries
+        for entry in top_entries:
+            entry['link'] = os.path.relpath(entry['link'], self.current_directory)
         print(f"\nDebug: Found {len(all_matches)} matches total")
         print(f"Returning top {len(top_entries)} entries")
         return top_entries

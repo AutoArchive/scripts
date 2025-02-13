@@ -5,6 +5,9 @@ import argparse
 from utils import *
 from entry_generators import *
 from content_processors import *
+import pandas as pd
+import requests
+from io import StringIO
 
 class TOCGenerator:
     """Generates table of contents for directories and files"""
@@ -21,6 +24,9 @@ class TOCGenerator:
         
         # Add a list to store all entries
         self.all_entries = []
+        
+        # Add GA data processing
+        self.ga_data = self._load_ga_data()
 
     def generate_categorized_toc(self, categories):
         """Generate TOC from categorized content"""
@@ -82,8 +88,17 @@ class TOCGenerator:
         # Generate TOC content
         toc_content = self._generate_toc_content(config, directory, ignore_regexes, include_wordcloud)
         
+        # Get most visited entries
+        most_visited = self.get_most_visited(10)
+        most_visited_html = self._format_most_visited(most_visited)
+        
+        # Update template replacements
+        template_replacements = {
+            '{{MOST_VISITED}}': most_visited_html,
+        }
+        
         # Generate and write README
-        self._write_readme(directory, config, toc_content)
+        self._write_readme(directory, config, toc_content, template_replacements)
 
     def _generate_toc_content(self, config, directory, ignore_regexes, include_wordcloud):
         """Generate the TOC content for a directory"""
@@ -133,7 +148,7 @@ class TOCGenerator:
             <td>{item.get('date', '未知')}</td>
         </tr>'''
 
-    def _write_readme(self, directory, config, toc_content):
+    def _write_readme(self, directory, config, toc_content, template_replacements):
         """Write the README.md file"""
         # Store current directory for use in _generate_recent_updates
         self.current_directory = directory
@@ -185,6 +200,9 @@ class TOCGenerator:
         # Add table of contents
         updated_content = updated_content.replace('{{TABLE_OF_CONTENTS}}', toc_content)
         
+        # Add most visited section
+        updated_content = updated_content.replace('{{MOST_VISITED}}', template_replacements['{{MOST_VISITED}}'])
+        
         # Write the README file
         readme_path = os.path.join(directory, 'README.md')
         with open(readme_path, 'w', encoding='utf-8') as f:
@@ -199,7 +217,7 @@ class TOCGenerator:
         
         # Sort all entries by date and get the 10 most recent
         latest_entries = sorted(
-            self.all_entries,
+            [e for e in self.all_entries if 'entry_data' in e],  # Filter valid entries
             key=lambda x: x['archived_date'],
             reverse=True
         )[:10]
@@ -319,6 +337,107 @@ class TOCGenerator:
         table.append('</table>\n')
         
         return '\n'.join(table)
+
+    def _load_ga_data(self):
+        """Load Google Analytics data from GitHub"""
+        try:
+            url = "https://raw.githubusercontent.com/project-polymorph/data-analysis/refs/heads/main/ga_visitor/google_analysis.csv"
+            response = requests.get(url)
+            response.raise_for_status()
+            
+            # Read CSV data
+            content = response.text
+            lines = content.split('\n')
+            
+            # Find the actual data start (after metadata)
+            start_idx = 0
+            for i, line in enumerate(lines):
+                if line.startswith('Page path and screen class,Views,'):
+                    start_idx = i
+                    break
+            
+            # Create DataFrame from the actual data
+            data = '\n'.join(lines[start_idx:])
+            df = pd.read_csv(StringIO(data))
+            
+            # Sort by views and get top entries
+            df = df.sort_values('Views', ascending=False)
+            print("\nDebug: Top 5 GA entries:")
+            print(df[['Page path and screen class', 'Views']].head())
+            return df
+        except Exception as e:
+            print(f"Warning: Failed to load GA data: {e}")
+            return None
+
+    def get_most_visited(self, limit=10):
+        """Get the most visited content entries"""
+        if self.ga_data is None or not self.all_entries:
+            print("Debug: No GA data or no entries")
+            return []
+            
+        entries = []
+        print(f"\nDebug: Processing top {limit} GA entries")
+        for _, row in self.ga_data.head(limit).iterrows():
+            # Normalize GA path: remove leading/trailing slashes and _page suffix
+            ga_path = row['Page path and screen class'].strip('/')
+            if ga_path.endswith('_page'):
+                ga_path = ga_path[:-5]
+            views = int(row['Views'])
+            print(f"\nLooking for path: {ga_path} ({views:,} views)")
+            
+            # Find matching content entry
+            matching_entry = None
+            for entry in self.all_entries:
+                if 'entry_data' not in entry or 'current_dir' not in entry:
+                    continue
+                    
+                # Build and normalize entry path
+                entry_path = os.path.join(
+                    entry['current_dir'], 
+                    entry['entry_data'].get('link', '')
+                ).strip('/')
+                # Remove ./ prefix if exists
+                if entry_path.startswith('./'):
+                    entry_path = entry_path[2:]
+                    
+                print(f"  Comparing with normalized path: {entry_path}")
+                
+                # Try exact match
+                if ga_path == entry_path:
+                    print(f"    Found exact match!")
+                    matching_entry = entry
+                    break
+            
+            if matching_entry:
+                print(f"  Matched with: {matching_entry['entry_data']['name']}")
+                entries.append({
+                    'name': matching_entry['entry_data']['name'],
+                    'link': os.path.relpath(
+                        os.path.join(matching_entry['current_dir'], matching_entry['entry_data']['link']),
+                        self.current_directory
+                    ),
+                    'views': views
+                })
+            else:
+                print("  No match found")
+                
+        print(f"\nDebug: Found {len(entries)} matches total")
+        return entries
+
+    def _format_most_visited(self, entries):
+        """Format most visited entries as a list"""
+        if not entries:
+            return ""
+            
+        content = []
+        for entry in entries:
+            name = entry['name']
+            link = entry['link']
+            views = entry['views']
+            content.append(f"- {views:,} 访问 [{name}]({link})")
+        
+        content.append("\n")
+        return "\n".join(content)
 
 def main():
     parser = argparse.ArgumentParser(description='Generate table of contents for the project')

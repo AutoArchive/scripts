@@ -434,16 +434,13 @@ class TOCGenerator:
                 
                 all_matches.append({
                     'name': matching_entry['entry_data']['name'],
-                    'link': rel_link,
+                    'link': '/' + rel_link,
                     'views': views
                 })
         
         # Sort all matches by views and get top entries
         sorted_matches = sorted(all_matches, key=lambda x: x['views'], reverse=True)
         top_entries = sorted_matches[:limit]
-        # add the relative path to the entries
-        for entry in top_entries:
-            entry['link'] = os.path.relpath(entry['link'], self.current_directory)
         print(f"\nDebug: Found {len(all_matches)} matches total")
         print(f"Returning top {len(top_entries)} entries")
         return top_entries

@@ -39,7 +39,7 @@ class FileEntryGenerator(EntryGenerator):
         return {
             'type': 'content',
             'name': name,
-            'link': page,
+            'link': page_link.replace('.md', ''),
             'year': year,
             'date': archived_date,
             'description': description

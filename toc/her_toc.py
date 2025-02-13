@@ -23,9 +23,9 @@ class TOCGenerator:
         """Generate TOC from categorized content"""
         toc = []
         type_names = {
+            'webpage': '🌐 网页', 'other': '📎 其他',
             'document': '📄 文档', 'image': '🖼️ 图片',
-            'video': '🎬 视频', 'audio': '🎵 音频',
-            'webpage': '🌐 网页', 'other': '📎 其他'
+            'video': '🎬 视频', 'audio': '🎵 音频'
         }
         
         for file_type, years in categories.items():

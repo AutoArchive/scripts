@@ -18,6 +18,7 @@ class FilesProcessor(ContentProcessor):
     """Processes files and categorizes them by type"""
     def __init__(self, entry_generator, entry_formatter):
         super().__init__(entry_generator, entry_formatter)
+        self.all_entries = []  # Add this to store all entries
         
     def process(self, files, directory='.'):
         categories = {
@@ -32,6 +33,14 @@ class FilesProcessor(ContentProcessor):
             entry_data = self.entry_generator.generate(file_info, directory)
             formatted_entry = self.entry_formatter(entry_data)
             archived_date = file_info.get('archived_date', '9999-12-31')
+            
+            # Store all content entries with dates
+            if entry_data and entry_data['type'] == 'content':
+                self.all_entries.append({
+                    'entry_data': entry_data,
+                    'formatted_entry': formatted_entry,
+                    'archived_date': archived_date
+                })
             
             # Put all entries in '0000' year bucket
             categories[file_type]['0000'].append((formatted_entry, archived_date))

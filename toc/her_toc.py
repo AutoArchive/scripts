@@ -19,6 +19,9 @@ class TOCGenerator:
         self.dir_processor = DirectoryProcessor(self.dir_generator, self._format_entry)
         self.independence_processor = IndependenceProcessor(self.independence_generator, self._format_entry)
         
+        # Add a list to store all entries
+        self.all_entries = []
+
     def generate_categorized_toc(self, categories):
         """Generate TOC from categorized content"""
         toc = []
@@ -62,36 +65,40 @@ class TOCGenerator:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
             
+        # Process subdirectories first to collect all entries
+        if config.get('subdirs'):
+            for subdir in config.get('subdirs', []):
+                subdir_path = os.path.join(directory, subdir)
+                self.process_directory(subdir_path, ignore_regexes, include_wordcloud)
+        
+        # Process current directory
+        if config.get('files'):
+            self.files_processor.process(config['files'], directory)
+            # Store entries with path relative to current directory
+            for entry in self.files_processor.all_entries:
+                entry['current_dir'] = directory
+            self.all_entries.extend(self.files_processor.all_entries)
+            
+        # Generate TOC content
         toc_content = self._generate_toc_content(config, directory, ignore_regexes, include_wordcloud)
         
         # Generate and write README
         self._write_readme(directory, config, toc_content)
-        
-        # Process subdirectories
-        for subdir in config.get('subdirs', []):
-            subdir_path = os.path.join(directory, subdir)
-            self.process_directory(subdir_path, ignore_regexes, include_wordcloud)
 
     def _generate_toc_content(self, config, directory, ignore_regexes, include_wordcloud):
         """Generate the TOC content for a directory"""
         toc_content = []
         
-        # Add header section with metadata
-        if 'description' in config:
-            toc_content.append(f"{config['description']}\n")
-        
-        # Add metadata using markdown admonition
-        toc_content.append('!!! info "📊 统计信息"\n')
-        total_count = count_files_recursive(directory, ignore_regexes)
-        toc_content.append(f'    总计内容：{total_count} 篇\n')
-        
-        if 'tags' in config and config['tags']:
-            toc_content.append('    标签：' + " ".join([f"`{tag}`" for tag in config['tags']]) + "\n")
-        toc_content.append('\n')
+        # Process files by category
+        if config.get('files'):
+            categories = self.files_processor.process(config['files'], directory)
+            files_toc = self.generate_categorized_toc(categories)
+            if files_toc:
+                toc_content.append(files_toc)
 
         # Process directories
         if config.get('subdirs'):
-            toc_content.append("## 📁 子目录\n")
+            toc_content.append("\n## 📁 子目录\n")
             dir_entries = self.dir_processor.process(config['subdirs'], directory, ignore_regexes)
             dir_table = self._generate_table(
                 headers=[('目录名', '30%'), ('文件数量', '20%'), ('简介', '50%')],
@@ -100,26 +107,6 @@ class TOCGenerator:
             )
             toc_content.append(dir_table)
 
-        # Process independence entries
-        if directory == '.':
-            independence_entries = self.independence_processor.process()
-            if independence_entries:
-                toc_content.append("## 📚 独立档案库与网站\n")
-                independence_table = self._generate_table(
-                    headers=[('名称', '70%'), ('内容数量', '30%')],
-                    entries=independence_entries,
-                    sort_columns=[0, 1]
-                )
-                toc_content.append(independence_table)
-
-        # Process files by category
-        if config.get('files'):
-            categories = self.files_processor.process(config['files'], directory)
-            files_toc = self.generate_categorized_toc(categories)
-            if files_toc:
-                toc_content.append("## 📑 文件列表\n")
-                toc_content.append(files_toc)
-        
         # Add wordcloud using markdown
         if include_wordcloud:
             wordcloud_path = os.path.join(directory, 'abstracts_wordcloud.png')
@@ -127,86 +114,14 @@ class TOCGenerator:
                 toc_content.append('\n## 📊 词云图 { data-search-exclude }\n')
                 toc_content.append('![词云图](abstracts_wordcloud.png)\n')
         
-        # Add sorting JavaScript with custom sort functions
-        toc_content.append('''
-<script>
-const sortFunctions = {
-    year: (a, b, direction) => {
-        a = a === '未知' ? '0000' : a;
-        b = b === '未知' ? '0000' : b;
-        return direction === 'desc' ? b.localeCompare(a) : a.localeCompare(b);
-    },
-    count: (a, b, direction) => {
-        const aNum = parseInt(a.match(/\\d+/)?.[0] || '0');
-        const bNum = parseInt(b.match(/\\d+/)?.[0] || '0');
-        return direction === 'desc' ? bNum - aNum : aNum - bNum;
-    },
-    text: (a, b, direction) => {
-        return direction === 'desc' 
-            ? b.localeCompare(a, 'zh-CN') 
-            : a.localeCompare(b, 'zh-CN');
-    }
-};
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('th[data-sortable="true"]').forEach(th => {
-        th.style.cursor = 'pointer';
-        th.addEventListener('click', () => sortTable(th));
-        
-        if (th.getAttribute('data-sort-direction')) {
-            sortTable(th, true);
-        }
-    });
-});
-
-function sortTable(th, isInitial = false) {
-    const table = th.closest('table');
-    const tbody = table.querySelector('tbody');
-    const colIndex = Array.from(th.parentNode.children).indexOf(th);
-    
-    // Store original rows with their sort values
-    const rowsWithValues = Array.from(tbody.querySelectorAll('tr')).map(row => ({
-        element: row,
-        value: row.children[colIndex].textContent.trim(),
-        html: row.innerHTML
-    }));
-    
-    // Toggle or set initial sort direction
-    const currentDirection = th.getAttribute('data-sort-direction');
-    const direction = isInitial ? currentDirection : (currentDirection === 'desc' ? 'asc' : 'desc');
-    
-    // Update sort indicators
-    th.closest('tr').querySelectorAll('th').forEach(header => {
-        if (header !== th) {
-            header.textContent = header.textContent.replace(/ [▼▲]$/, '');
-            header.removeAttribute('data-sort-direction');
-        }
-    });
-    
-    th.textContent = th.textContent.replace(/ [▼▲]$/, '') + (direction === 'desc' ? ' ▼' : ' ▲');
-    th.setAttribute('data-sort-direction', direction);
-    
-    // Get sort function based on column type
-    const sortType = th.getAttribute('data-sort-type') || 'text';
-    const sortFn = sortFunctions[sortType] || sortFunctions.text;
-    
-    // Sort rows
-    rowsWithValues.sort((a, b) => sortFn(a.value, b.value, direction));
-    
-    // Clear and rebuild tbody
-    tbody.innerHTML = '';
-    rowsWithValues.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = row.html;
-        tbody.appendChild(tr);
-    });
-}
-</script>
-''')
-        
-        # Add auto-generated note using markdown blockquote
-        toc_content.append('\n!!! note "自动生成说明"\n')
-        toc_content.append('    目录及摘要为自动生成，仅供索引和参考，请修改 .github/ 目录下的对应脚本、模板或对应文件以更正。\n')
+        # Add sorting script
+        script_path = os.path.join(os.path.dirname(__file__), 'toc_sort.js')
+        try:
+            with open(script_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
+                toc_content.append(f'\n<script>\n{script_content}\n</script>\n')
+        except FileNotFoundError:
+            print(f"Warning: Sorting script not found at {script_path}")
         
         return "\n".join(toc_content)
 
@@ -220,25 +135,89 @@ function sortTable(th, isInitial = false) {
 
     def _write_readme(self, directory, config, toc_content):
         """Write the README.md file"""
-        exclude_marker = """---
-search:
-  exclude: true
----
-
-
-"""
+        # Store current directory for use in _generate_recent_updates
+        self.current_directory = directory
+        
         template_path = get_template_path(directory)
-        if template_path:
+        if not template_path:
+            template_path = os.path.join(os.path.dirname(get_template_path('.')), 'default_toc.md.template')
+        
+        try:
             with open(template_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            updated_content = content.replace('{{TABLE_OF_CONTENTS}}', toc_content)
-        else:
+        except FileNotFoundError:
+            print(f"Warning: No template found at {template_path}")
             dir_name = config.get('name', os.path.basename(directory))
-            updated_content = exclude_marker + f"# {dir_name}\n\n{toc_content}"
+            updated_content = f"# {dir_name}\n\n{toc_content}"
+            
+            readme_path = os.path.join(directory, 'README.md')
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            return
+            
+        # Replace template placeholders
+        dir_name = config.get('name', os.path.basename(directory))
+        updated_content = content.replace('{{TITLE}}', dir_name)
         
+        # Add info section if description exists
+        info_section = ""
+        if 'description' in config:
+            info_section = "\n!!! info\n\n" + \
+                         "    " + config['description'].replace("\n", "\n    ") + "\n"
+        updated_content = updated_content.replace('{{INFO_SECTION}}', info_section)
+        
+        # Generate statistics section
+        stats_section = "\n!!! note \"📊 统计信息\"\n\n"
+        total_count = count_files_recursive(directory, [])  # Count all files in this dir and subdirs
+        stats_section += f"    总计内容：{total_count} 篇\n"
+        
+        # Add tags if they exist
+        if 'tags' in config and config['tags']:
+            stats_section += '    标签：' + " ".join([f"`{tag}`" for tag in config['tags']]) + "\n"
+            
+        updated_content = updated_content.replace('{{TAGS_SECTION}}', stats_section)
+        
+        # Add recent updates if placeholder exists
+        if '{{RECENT_UPDATES}}' in content:
+            recent_updates = self._generate_recent_updates()
+            updated_content = updated_content.replace('{{RECENT_UPDATES}}', recent_updates)
+        
+        # Add table of contents
+        updated_content = updated_content.replace('{{TABLE_OF_CONTENTS}}', toc_content)
+        
+        # Write the README file
         readme_path = os.path.join(directory, 'README.md')
         with open(readme_path, 'w', encoding='utf-8') as f:
             f.write(updated_content)
+
+    def _generate_recent_updates(self):
+        """Generate the recent updates section"""
+        if not self.all_entries:
+            return ""
+            
+        content = []
+        
+        # Sort all entries by date and get the 10 most recent
+        latest_entries = sorted(
+            self.all_entries,
+            key=lambda x: x['archived_date'],
+            reverse=True
+        )[:10]
+        
+        # Use the directory where README is being written
+        current_dir = self.current_directory  # We'll set this in _write_readme
+        for entry in latest_entries:
+            entry_data = entry['entry_data']
+            date = entry['archived_date'][:10]  # Get just the date part
+            # Make link relative to current directory
+            link = os.path.relpath(
+                os.path.join(entry['current_dir'], entry_data['link']),
+                current_dir
+            )
+            content.append(f"- {date} [{entry_data['name']}]({link})")
+        
+        content.append("\n")
+        return "\n".join(content)
 
     def _format_entry(self, entry):
         """Format entry data into HTML/Markdown"""

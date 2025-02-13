@@ -13,3 +13,4 @@ wordcloud
 matplotlib
 pillow
 jieba
+pandas

@@ -18,9 +18,13 @@ class FilesProcessor(ContentProcessor):
     """Processes files and categorizes them by type"""
     def __init__(self, entry_generator, entry_formatter):
         super().__init__(entry_generator, entry_formatter)
-        self.all_entries = []  # Add this to store all entries
+        self.all_entries = []
+        self._processed_paths = set()
         
     def process(self, files, directory='.'):
+        # Clear entries for each new directory
+        self.all_entries = []
+        
         categories = {
             'document': {'0000': []}, 'image': {'0000': []}, 
             'video': {'0000': []}, 'audio': {'0000': []},
@@ -36,27 +40,38 @@ class FilesProcessor(ContentProcessor):
             
             # Store all content entries with dates
             if entry_data and entry_data['type'] == 'content':
-                # Make the link relative to the root directory
+                # Calculate absolute paths for deduplication
                 root_dir = os.path.abspath('.')
                 current_dir = os.path.abspath(directory)
                 rel_dir = os.path.relpath(current_dir, root_dir)
                 
-                # Update the link to be relative to root
-                entry_data['link'] = os.path.normpath(os.path.join(rel_dir, entry_data['link']))
-                entry_data['link'] = entry_data['link'].replace(os.sep, '/')
+                # Create a unique path identifier
+                full_path = os.path.normpath(os.path.join(rel_dir, entry_data.get('link', '')))
                 
-                # Store entry with its directory info
-                self.all_entries.append({
-                    'entry_data': entry_data,
-                    'formatted_entry': formatted_entry,
-                    'archived_date': archived_date,
-                    'current_dir': '.'  # Store root as current dir since links are now relative to root
-                })
+                # Only add if we haven't processed this path before
+                if full_path not in self._processed_paths:
+                    self._processed_paths.add(full_path)
+                    
+                    # Update the link to be relative to root
+                    entry_data['link'] = full_path.replace(os.sep, '/')
+                    
+                    # Store entry with its directory info
+                    self.all_entries.append({
+                        'entry_data': entry_data,
+                        'formatted_entry': formatted_entry,
+                        'archived_date': archived_date,
+                        'current_dir': rel_dir,
+                        'file_info': file_info
+                    })
             
-            # Put all entries in '0000' year bucket
             categories[file_type]['0000'].append((formatted_entry, archived_date))
             
         return categories
+
+    def clear(self):
+        """Clear all stored entries and processed paths"""
+        self.all_entries = []
+        self._processed_paths = set()
 
 class DirectoryProcessor(ContentProcessor):
     """Processes directories and their metadata"""

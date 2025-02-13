@@ -22,6 +22,9 @@ class TOCGenerator:
         self.dir_processor = DirectoryProcessor(self.dir_generator, self._format_entry)
         self.independence_processor = IndependenceProcessor(self.independence_generator, self._format_entry)
         
+        # Clear any existing entries
+        self.files_processor.clear()
+        
         # Add a list to store all entries
         self.all_entries = []
         
@@ -68,6 +71,11 @@ class TOCGenerator:
         # Update current directory
         self.current_directory = directory
 
+        # Clear all entries if this is the root directory
+        if directory == '.':
+            self.files_processor.clear()
+            self.all_entries = []
+
         config_path = os.path.join(directory, 'config.yml')
         if not os.path.exists(config_path):
             print(f"Warning: No config.yml found in {directory}")
@@ -86,9 +94,7 @@ class TOCGenerator:
         # Process current directory
         if config.get('files'):
             self.files_processor.process(config['files'], directory)
-            # Store entries with path relative to current directory
-            for entry in self.files_processor.all_entries:
-                entry['current_dir'] = directory
+            # Store entries
             self.all_entries.extend(self.files_processor.all_entries)
             
         # Generate TOC content
@@ -383,65 +389,52 @@ class TOCGenerator:
             return None
 
     def get_most_visited(self, limit=10):
-        """Get the most visited content entries"""
-        if self.ga_data is None or not self.all_entries:
-            print("Debug: No GA data or no entries")
+        """Get the most visited content entries from config.yml files"""
+        if not self.all_entries:
+            print("Debug: No entries found")
             return []
             
-        all_matches = []  # Store all matches first
-        root_dir = os.path.abspath('.')
+        all_matches = []
         current_dir_abs = os.path.abspath(self.current_directory)
         
         # Filter entries to only include those from current directory or its subdirectories
         current_entries = [
             entry for entry in self.all_entries 
             if 'current_dir' in entry and 
-            os.path.abspath(entry['current_dir']).startswith(current_dir_abs)
+            os.path.abspath(os.path.join('.', entry['current_dir'])).startswith(current_dir_abs)
         ]
         
-        for _, row in self.ga_data.iterrows():
-            ga_path = row['clean_path']
-            views = int(row['Views'])
-            if ga_path == '':
+        print(f"\nTotal entries in repository: {len(self.all_entries)}")
+        print(f"Processing {len(current_entries)} entries for current directory: {self.current_directory}")
+        
+        # Collect entries with visitor counts
+        for entry in current_entries:
+            if 'entry_data' not in entry:
                 continue
             
-            # Find matching content entry
-            matching_entry = None
-            for entry in current_entries:  # Use filtered entries
-                if 'entry_data' not in entry:
-                    continue
-                    
-                # Get the link and normalize it
-                entry_link = entry['entry_data'].get('link', '')
-                if entry_link.endswith('.md'):
-                    entry_link = entry_link[:-3]
-                
-                # Join path parts and normalize
-                entry_path = entry_link
-                
-                # Try exact match
-                if ga_path == entry_path:
-                    print(f"    Found exact match! {entry_path}")
-                    matching_entry = entry
-                    break
+            entry_data = entry['entry_data']
+            file_info = entry.get('file_info', {})
             
-            if matching_entry:
+            # Get visitor count if available
+            visitors = file_info.get('visitors', 0)
+            if visitors > 0:
                 # Calculate relative link from current directory
                 rel_link = os.path.relpath(
-                    os.path.join(matching_entry['current_dir'], matching_entry['entry_data']['link']),
+                    os.path.join(entry['current_dir'], entry_data['link']),
                     self.current_directory
                 ).replace(os.sep, '/')
                 
                 all_matches.append({
-                    'name': matching_entry['entry_data']['name'],
+                    'name': entry_data['name'],
                     'link': '/' + rel_link,
-                    'views': views
+                    'views': visitors
                 })
         
-        # Sort all matches by views and get top entries
+        # Sort by views and get top entries
         sorted_matches = sorted(all_matches, key=lambda x: x['views'], reverse=True)
         top_entries = sorted_matches[:limit]
-        print(f"\nDebug: Found {len(all_matches)} matches total")
+        
+        print(f"Found {len(all_matches)} entries with visitor data")
         print(f"Returning top {len(top_entries)} entries")
         return top_entries
 

@@ -28,6 +28,7 @@ class FileEntryGenerator(EntryGenerator):
         year = 'Unknown'
         archived_date = '9999-12-31'
         description = ''
+        visitors = file_info.get('visitors', 0)  # Get visitor count from config
         
         if page := file_info.get('page'):
             page_path = os.path.join(directory, page)
@@ -42,7 +43,8 @@ class FileEntryGenerator(EntryGenerator):
             'link': page_link.replace('.md', ''),
             'year': year,
             'date': archived_date,
-            'description': description
+            'description': description,
+            'visitors': visitors  # Include visitor count in entry data
         }
 
 class DirectoryEntryGenerator(EntryGenerator):

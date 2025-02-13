@@ -7,43 +7,45 @@ from utils import count_files_recursive, natural_sort_key
 
 class ContentProcessor:
     """Base class for processing different types of content"""
+    def __init__(self, entry_generator, entry_formatter):
+        self.entry_generator = entry_generator
+        self.entry_formatter = entry_formatter
+    
     def process(self, items, directory='.', ignore_regexes=None):
         raise NotImplementedError
 
 class FilesProcessor(ContentProcessor):
-    """Processes files and categorizes them by type and year"""
-    def __init__(self, entry_generator):
-        self.entry_generator = entry_generator
+    """Processes files and categorizes them by type"""
+    def __init__(self, entry_generator, entry_formatter):
+        super().__init__(entry_generator, entry_formatter)
         
     def process(self, files, directory='.'):
         categories = {
-            'document': {}, 'image': {}, 'video': {},
-            'audio': {}, 'webpage': {}, 'other': {}
+            'document': {'0000': []}, 'image': {'0000': []}, 
+            'video': {'0000': []}, 'audio': {'0000': []},
+            'webpage': {'0000': []}, 'other': {'0000': []}
         }
         
-        # Sort and categorize
+        # Sort and categorize only by type
         for file_info in sorted(files, key=lambda x: natural_sort_key(x['name'])):
             file_type = file_info['type']
-            entry = self.entry_generator.generate(file_info, directory)
-            year = file_info.get('year', '0000') if file_info.get('year') != 'Unknown' else '0000'
-            
-            if year not in categories[file_type]:
-                categories[file_type][year] = []
-                
+            entry_data = self.entry_generator.generate(file_info, directory)
+            formatted_entry = self.entry_formatter(entry_data)
             archived_date = file_info.get('archived_date', '9999-12-31')
-            categories[file_type][year].append((entry, archived_date))
+            
+            # Put all entries in '0000' year bucket
+            categories[file_type]['0000'].append((formatted_entry, archived_date))
             
         return categories
 
 class DirectoryProcessor(ContentProcessor):
     """Processes directories and their metadata"""
-    def __init__(self, entry_generator):
-        self.entry_generator = entry_generator
+    def __init__(self, entry_generator, entry_formatter):
+        super().__init__(entry_generator, entry_formatter)
         
     def process(self, subdirs, directory='.', ignore_regexes=None):
         entries = []
         for subdir in sorted(subdirs):
-            # Create subdir_info dictionary with required information
             subdir_info = {
                 'name': subdir,
                 'count': count_files_recursive(os.path.join(directory, subdir), ignore_regexes)
@@ -60,14 +62,15 @@ class DirectoryProcessor(ContentProcessor):
                 except Exception as e:
                     print(f"Warning: Failed to read config for {subdir}: {e}")
             
-            entry = self.entry_generator.generate(subdir_info, directory)
-            entries.append(entry)
+            entry_data = self.entry_generator.generate(subdir_info, directory)
+            formatted_entry = self.entry_formatter(entry_data)
+            entries.append(formatted_entry)
         return entries
 
 class IndependenceProcessor(ContentProcessor):
     """Processes independence repository entries"""
-    def __init__(self, entry_generator):
-        self.entry_generator = entry_generator
+    def __init__(self, entry_generator, entry_formatter):
+        super().__init__(entry_generator, entry_formatter)
         
     def process(self, json_path='independence_repo.json', directory='.'):
         try:
@@ -77,7 +80,8 @@ class IndependenceProcessor(ContentProcessor):
             entries = []
             for entry in independence_data:
                 if result := self.entry_generator.generate(entry, directory):
-                    entries.append(result)
+                    formatted_entry = self.entry_formatter(result)
+                    entries.append(formatted_entry)
             return entries
             
         except FileNotFoundError:

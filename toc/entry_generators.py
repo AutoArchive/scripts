@@ -13,38 +13,53 @@ class FileEntryGenerator(EntryGenerator):
         name = file_info.get('name', 'Unknown') or 'Unknown'
         filename = file_info.get('filename', 'Unknown') or 'Unknown'
         file_type = file_info.get('type', 'Unknown') or 'Unknown'
-        
         page_link = file_info.get('page', filename) if file_type != 'image' else filename
-        entry = ""
         
         if file_type == 'image':
-            entry = f"\n![{name}]({filename})\n"
+            return {
+                'type': 'image',
+                'name': name,
+                'filename': filename
+            }
         else:
-            entry = f"\n\n[{name}]({page_link})"
-            
-            if page := file_info.get('page'):
-                page_path = os.path.join(directory, page)
-                if os.path.exists(page_path):
-                    year, archived_date, description = extract_metadata_from_markdown(page_path)
-                    if description:
-                        entry += f"<details><summary>查看摘要</summary>\n\n{description}\n</details>\n\n"
-                    file_info['year'] = year or 'Unknown'
-                    file_info['archived_date'] = archived_date or '9999-12-31'
-                    
-        return entry
+            return self._generate_content_entry(name, page_link, file_info, directory)
+    
+    def _generate_content_entry(self, name, page_link, file_info, directory):
+        year = 'Unknown'
+        archived_date = '9999-12-31'
+        description = ''
+        
+        if page := file_info.get('page'):
+            page_path = os.path.join(directory, page)
+            if os.path.exists(page_path):
+                year, archived_date, description = extract_metadata_from_markdown(page_path)
+                file_info['year'] = year or 'Unknown'
+                file_info['archived_date'] = archived_date or '9999-12-31'
+        
+        return {
+            'type': 'content',
+            'name': name,
+            'link': page_link,
+            'year': year,
+            'date': archived_date,
+            'description': description
+        }
 
 class DirectoryEntryGenerator(EntryGenerator):
     """Generates entries for directories"""
     def generate(self, subdir_info, directory='.'):
-        subdir, file_count = subdir_info['name'], subdir_info['count']
-        subdir_path = os.path.join(directory, subdir)
-        entry = f"- [{subdir}]({subdir}) ({file_count} 篇内容)"
+        subdir = subdir_info['name']
+        file_count = subdir_info['count']
+        description = subdir_info.get('description', '')
+        last_modified = subdir_info.get('last_modified', '0000-00-00')
         
-        # Add details/summary if subdir has config.yml with description
-        if description := subdir_info.get('description'):
-            entry += f"\n  <details><summary>内容简介</summary>\n\n  {description}\n  </details>"
-        
-        return entry
+        return {
+            'type': 'directory',
+            'name': subdir,
+            'count': file_count,
+            'description': description,
+            'date': last_modified
+        }
 
 class IndependenceEntryGenerator(EntryGenerator):
     """Generates entries for independence repositories"""
@@ -54,5 +69,10 @@ class IndependenceEntryGenerator(EntryGenerator):
         size = entry.get('size', 0)
         
         if name and url and size:
-            return f"- [{name}: {url}]({url}) ({size} 篇内容)"
+            return {
+                'type': 'independence',
+                'name': name,
+                'url': url,
+                'size': size
+            }
         return None 

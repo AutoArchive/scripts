@@ -278,7 +278,7 @@ class TOCGenerator:
         elif entry_type == 'content':
             description_html = ''
             if entry['description']:
-                summary = truncate_text(entry['description'])
+                summary = "展开" # + truncate_text(entry['description'])
                 description_html = f'''<details markdown>
                     <summary>{summary}</summary>
                     <div class="description">
@@ -298,7 +298,7 @@ class TOCGenerator:
         elif entry_type == 'directory':
             description_html = ''
             if entry['description']:
-                summary = "查看" # + truncate_text(entry['description'])
+                summary = "展开" # + truncate_text(entry['description'])
                 description_html = f'''<details markdown>
                     <summary>{summary}</summary>
                     <div class="description">

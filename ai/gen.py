@@ -47,6 +47,15 @@ def generate_content_from_file(input_file, output_file=None):
     Returns:
         str: The generated/cleaned content
     """
+    load_dotenv()
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    model_name = os.getenv('OPENAI_MODEL_NAME')
+    if not model_name:
+        model_name = "gpt-4o"
+    temperature = os.getenv('OPENAI_TEMPERATURE')
+    if not temperature:
+        temperature = 0.7
+    client = OpenAI()
     try:
         # Read input file
         input_content = read_file(input_file)

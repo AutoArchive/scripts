@@ -6,17 +6,6 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import base64
 
-load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
-model_name = os.getenv('OPENAI_MODEL_NAME')
-if not model_name:
-    model_name = "gpt-4o"
-print(f"Using model: {model_name}")
-temperature = os.getenv('OPENAI_TEMPERATURE')
-if not temperature:
-    temperature = 0.7
-print(f"Using temperature: {temperature}")
-client = OpenAI()
 
 def read_file(file_path):
     """Read the content of the input file."""
@@ -89,6 +78,18 @@ def generate_structured_content(input_content, schema, image_path=None, output_f
     Returns:
         dict: The structured content generated
     """
+        
+    load_dotenv()
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    model_name = os.getenv('OPENAI_MODEL_NAME')
+    if not model_name:
+        model_name = "gpt-4o"
+    print(f"Using model: {model_name}")
+    temperature = os.getenv('OPENAI_TEMPERATURE')
+    if not temperature:
+        temperature = 0.7
+    print(f"Using temperature: {temperature}")
+    client = OpenAI()
     try:
         # Handle input content as file path or direct content
         if os.path.isfile(input_content):

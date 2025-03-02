@@ -1,9 +1,16 @@
 import os
 from pathlib import Path
-import tempfile
 import json
-import subprocess
-import yaml
+import sys
+
+# Add parent directory to path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from github.scripts.ai.gen_struct import generate_structured_content
+
 from docx import Document
 import pdfplumber
 
@@ -38,7 +45,7 @@ def extract_text(file_path):
     else:
         return "This is a binary file."
 
-def get_ai_filename(file_path, gen_struct_path):
+def get_ai_filename(file_path):
     """Ask AI to generate a better filename for the file"""
     content = extract_text(str(file_path))
     original_suffix = file_path.suffix  # Get the original file extension
@@ -68,37 +75,21 @@ def get_ai_filename(file_path, gen_struct_path):
         "additionalProperties": False
     }
 
-    # Create temporary files
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as temp_input:
-        prompt = template.format(
-            file_name=file_path.name,
-            file_content=content[:30000]
-        )
-        temp_input.write(prompt)
-        temp_input_path = temp_input.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_schema:
-        json.dump(schema, temp_schema)
-        schema_file = temp_schema.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_output:
-        temp_output_path = temp_output.name
-
+    # Format the prompt
+    prompt = template.format(
+        file_name=file_path.name,
+        file_content=content[:30000]
+    )
+    
+    # Add image path if it's an image
+    image_path = None
+    if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']:
+        image_path = str(file_path)
+    
+    # Direct call to generate structured content
     try:
-        cmd = [
-            'python', gen_struct_path,
-            temp_input_path, temp_output_path, schema_file
-        ]
+        result = generate_structured_content(prompt, schema, image_path)
         
-        # Add image path if it's an image
-        if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']:
-            cmd.extend(['--image', str(file_path)])
-
-        subprocess.run(cmd, check=True)
-
-        with open(temp_output_path, 'r', encoding='utf-8') as f:
-            result = json.load(f)
-            
         # Add the original extension to the new filename
         if result and result.get('new_filename'):
             result['new_filename'] = result['new_filename'].rstrip('.') + original_suffix
@@ -107,10 +98,6 @@ def get_ai_filename(file_path, gen_struct_path):
     except Exception as e:
         print(f"Error during AI filename generation: {e}")
         return None
-    finally:
-        os.unlink(temp_input_path)
-        os.unlink(temp_output_path)
-        os.unlink(schema_file)
 
 def should_skip_file(file_path, workspace_dir):
     """Check if file should be skipped based on various criteria
@@ -149,8 +136,6 @@ def process_workspace():
         print("Workspace directory not found")
         return
 
-    gen_struct_path = '.github/scripts/ai/gen_struct.py'
-
     # Process each file in workspace recursively
     for root, dirs, files in os.walk(workspace_dir):
         for filename in files:
@@ -162,7 +147,7 @@ def process_workspace():
                 continue
 
             # Get AI suggested filename
-            result = get_ai_filename(file_path, gen_struct_path)
+            result = get_ai_filename(file_path)
             
             if result and result.get('new_filename'):
                 new_name = result['new_filename']

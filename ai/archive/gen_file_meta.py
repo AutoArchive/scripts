@@ -1,16 +1,23 @@
 import os
 import yaml
 import json
-import subprocess
-import tempfile
 import logging
 import pdfplumber
+import sys
 from .ignore import load_ignore_patterns, is_ignored
 import docx2txt
 import concurrent.futures
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 import epub2txt
+
+# Add parent directory to path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from ..gen_struct import generate_structured_content
 
 ignore_patterns = load_ignore_patterns()
 
@@ -74,7 +81,7 @@ def extract_text(file_path):
     else:
         return "This is a binary file."
 
-def generate_metadata(file_path, gen_struct_path, template_path, additional_meta):
+def generate_metadata(file_path, template_path, additional_meta):
     """Generate metadata using gen_struct.py."""
     content = extract_text(file_path)
     
@@ -87,12 +94,6 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
         with open(template_path, 'r', encoding='utf-8') as template_file:
             template = template_file.read()
         
-        # Debugging: Check the content of the template and the provided data
-        # print(f"Template content: {template}")
-        # print(f"File content: {content}")
-        # print(f"File path: {file_path}")
-        # print(f"Additional meta: {additional_meta}")
-
         # Ensure all placeholders are filled
         input_content = template.format(
             file_content=content,
@@ -107,7 +108,6 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
         print(f"Missing placeholder in template: {e}")
         return None
 
-    # print(input_content)
     # Define the JSON schema
     schema = {
         "type": "object",
@@ -125,44 +125,14 @@ def generate_metadata(file_path, gen_struct_path, template_path, additional_meta
         "additionalProperties": False
     }
 
-    # Create temporary files for input and schema
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as temp_input:
-        temp_input.write(input_content)
-        temp_input_path = temp_input.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_schema:
-        json.dump(schema, temp_schema)
-        schema_file = temp_schema.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_output:
-        temp_output_path = temp_output.name
-
-    try:
-        cmd = [
-            'python', gen_struct_path,
-            temp_input_path, temp_output_path, schema_file
-        ]
-        
-        # Add image path argument if it's an image file
-        if is_image:
-            cmd.extend(['--image', file_path])
-
-        subprocess.run(cmd, check=True)
-
-        with open(temp_output_path, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-        return metadata
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error running gen_struct.py: {e}")
-        return None
-    finally:
-        os.unlink(temp_input_path)
-        os.unlink(temp_output_path)
-        os.unlink(schema_file)
+    # Direct call to generate structured content
+    image_path = file_path if is_image else None
+    metadata = generate_structured_content(input_content, schema, image_path)
+    return metadata
 
 def process_single_file(args: tuple) -> None:
     """Process a single file with its metadata."""
-    directory, file_info, gen_struct_path, template_path = args
+    directory, file_info, template_path = args
     
     page_file = file_info.get('page')
     if page_file is None:
@@ -217,7 +187,7 @@ def process_single_file(args: tuple) -> None:
         'format': file_info.get('format', '')
     }
     
-    metadata = generate_metadata(file_path, gen_struct_path, template_path, additional_meta)
+    metadata = generate_metadata(file_path, template_path, additional_meta)
 
     if metadata:
         # Update the page markdown content
@@ -247,7 +217,7 @@ def process_single_file(args: tuple) -> None:
             f.write(new_content)
         logging.info(f"Updated page markdown for {file_info['filename']}")
 
-def update_metadata(directory: str, gen_struct_path: str, template_path: str) -> None:
+def update_metadata(directory: str, template_path: str) -> None:
     """Walk through files and update metadata in parallel batches."""
     config_path = os.path.join(directory, 'config.yml')
     if not os.path.exists(config_path):
@@ -272,20 +242,18 @@ def update_metadata(directory: str, gen_struct_path: str, template_path: str) ->
     # Process files in batches of 8
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         # Create arguments for each file
-        args_list = [(directory, file_info, gen_struct_path, template_path) 
+        args_list = [(directory, file_info, template_path) 
                     for file_info in files_to_process]
         
         # Execute in parallel
         list(executor.map(process_single_file, args_list))
 
-def gen_file_meta_main(base_dir: str = '.', gen_struct_path: str = None, template_path: str = None) -> Dict[str, Any]:
+def gen_file_meta_main(base_dir: str = '.') -> Dict[str, Any]:
     """
     Main function to generate file metadata.
     
     Args:
         base_dir (str): Base directory to process from
-        gen_struct_path (str): Path to gen_struct.py script
-        template_path (str): Path to template file
         
     Returns:
         Dict[str, Any]: Generated metadata
@@ -293,12 +261,9 @@ def gen_file_meta_main(base_dir: str = '.', gen_struct_path: str = None, templat
     try:
         os.chdir(base_dir)  # Change to base directory
         
-        if gen_struct_path is None:
-            gen_struct_path = '.github/scripts/ai/gen_struct.py'
-        if template_path is None:
-            template_path = '.github/prompts/gen_file_meta.md.template'
+        template_path = '.github/prompts/gen_file_meta.md.template'
             
-        update_metadata('.', gen_struct_path, template_path)
+        update_metadata('.', template_path)
         
         # Return config data from root directory
         config_path = os.path.join('.', 'config.yml')

@@ -76,6 +76,41 @@ def generate_cleanup_content(content, schema, image_path=None):
 
     return json.loads(completion.choices[0].message.content)
 
+def generate_structured_content(input_content, schema, image_path=None, output_file=None):
+    """
+    Generate structured content from input content and schema, with optional image.
+    
+    Args:
+        input_content (str): The input content or path to input file
+        schema (dict or str): Schema dictionary or path to schema file
+        image_path (str, optional): Path to an image file
+        output_file (str, optional): Path to save output. If None, only returns the result.
+        
+    Returns:
+        dict: The structured content generated
+    """
+    try:
+        # Handle input content as file path or direct content
+        if os.path.isfile(input_content):
+            input_content = read_file(input_content)
+
+        # Handle schema as file path or direct schema
+        if isinstance(schema, str) and os.path.isfile(schema):
+            schema = json.loads(read_file(schema))
+
+        # Generate structured content
+        structured_content = generate_cleanup_content(input_content, schema, image_path)
+
+        # Write to output file if specified
+        if output_file:
+            write_file(output_file, json.dumps(structured_content, indent=2))
+            
+        return structured_content
+
+    except Exception as e:
+        print(f"An error occurred in generate_structured_content: {e}")
+        return None
+
 def main():
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(
@@ -88,23 +123,9 @@ def main():
 
     args = parser.parse_args()
 
-    try:
-        # Read input file
-        input_content = read_file(args.input_file)
-
-        # Read schema file
-        schema = json.loads(read_file(args.schema_file))
-
-        # Generate structured content with optional image
-        structured_content = generate_cleanup_content(input_content, schema, args.image)
-
-        # Write to output file
-        write_file(args.output_file, json.dumps(structured_content, indent=2))
-
+    result = generate_structured_content(args.input_file, args.schema_file, args.image, args.output_file)
+    if result:
         print(f"Successfully processed '{args.input_file}' and saved structured output to '{args.output_file}'.")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()

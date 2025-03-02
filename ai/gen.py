@@ -36,6 +36,34 @@ def generate_cleanup_content(content):
 
     return str(completion.choices[0].message.content)
 
+def generate_content_from_file(input_file, output_file=None):
+    """
+    Generate cleaned content from a file and optionally save to an output file.
+    
+    Args:
+        input_file (str): Path to the input file
+        output_file (str, optional): Path to save the output file. If None, only returns the content.
+        
+    Returns:
+        str: The generated/cleaned content
+    """
+    try:
+        # Read input file
+        input_content = read_file(input_file)
+
+        # Generate cleaned content
+        cleaned_content = generate_cleanup_content(input_content)
+
+        # Write to output file if specified
+        if output_file:
+            write_file(output_file, cleaned_content)
+            
+        return cleaned_content
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
 def main():
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(
@@ -46,21 +74,9 @@ def main():
 
     args = parser.parse_args()
 
-    try:
-
-        # Read input file
-        input_content = read_file(args.input_file)
-
-        # Generate cleaned content
-        cleaned_content = generate_cleanup_content(input_content)
-
-        # Write to output file
-        write_file(args.output_file, cleaned_content)
-
+    result = generate_content_from_file(args.input_file, args.output_file)
+    if result:
         print(f"Successfully processed '{args.input_file}' and saved to '{args.output_file}'.")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()

@@ -4,8 +4,16 @@ import shutil
 from pathlib import Path
 import yaml
 import json
-import tempfile
-import subprocess
+import sys
+
+# Add parent directory to path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from github.scripts.ai.gen_struct import generate_structured_content
+
 from docx import Document
 import pdfplumber
 
@@ -62,7 +70,7 @@ def check_file_exists_by_md5(md5_hash):
     except FileNotFoundError:
         return False
 
-def get_ai_classification(file_path, gen_struct_path):
+def get_ai_classification(file_path):
     """Ask AI to classify the file and suggest the best directory"""
     content = extract_text(str(file_path))
     
@@ -96,47 +104,26 @@ def get_ai_classification(file_path, gen_struct_path):
         "additionalProperties": False
     }
 
-    # Create temporary files
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as temp_input:
-        # Fill in the template
-        prompt = template.format(
-            file_name=file_path.name,
-            file_content=content[:1000],
-            current_dir_structure=current_dir_structure
-        )
-        print("prompt: ", prompt)
-        temp_input.write(prompt)
-        temp_input_path = temp_input.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_schema:
-        json.dump(schema, temp_schema)
-        schema_file = temp_schema.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_output:
-        temp_output_path = temp_output.name
-
+    # Fill in the template
+    prompt = template.format(
+        file_name=file_path.name,
+        file_content=content[:1000],
+        current_dir_structure=current_dir_structure
+    )
+    print("prompt: ", prompt)
+    
+    # Add image path if it's an image
+    image_path = None
+    if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']:
+        image_path = str(file_path)
+    
+    # Direct call to generate structured content
     try:
-        cmd = [
-            'python', gen_struct_path,
-            temp_input_path, temp_output_path, schema_file
-        ]
-        
-        # Add image path if it's an image
-        if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']:
-            cmd.extend(['--image', str(file_path)])
-
-        subprocess.run(cmd, check=True)
-
-        with open(temp_output_path, 'r', encoding='utf-8') as f:
-            result = json.load(f)
+        result = generate_structured_content(prompt, schema, image_path)
         return result
     except Exception as e:
         print(f"Error during AI classification: {e}")
         return None
-    finally:
-        os.unlink(temp_input_path)
-        os.unlink(temp_output_path)
-        os.unlink(schema_file)
 
 def should_skip_file(file_path, workspace_dir):
     """Check if file should be skipped based on various criteria
@@ -179,8 +166,6 @@ def process_workspace():
     repeated_dir = Path("repeated").resolve()
     repeated_dir.mkdir(exist_ok=True)
 
-    gen_struct_path = '.github/scripts/ai/gen_struct.py'
-
     # Process each file in workspace recursively
     for root, dirs, files in os.walk(workspace_dir):
         for filename in files:
@@ -201,7 +186,7 @@ def process_workspace():
             # AI classification with retry logic
             max_retries = 3
             for attempt in range(max_retries):
-                classification = get_ai_classification(file_path, gen_struct_path)
+                classification = get_ai_classification(file_path)
                 print("classification: ", classification)
                 
                 if classification:

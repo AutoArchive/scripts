@@ -2,10 +2,17 @@
 import os
 import yaml
 import json
-import subprocess
-import tempfile
 import logging
 from pathlib import Path
+import sys
+
+# Add parent directory to path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from ..gen_struct import generate_structured_content
 from .ignore import load_ignore_patterns, is_ignored
 from .utils import extract_metadata_from_markdown
 
@@ -57,7 +64,7 @@ def get_content_summary(directory, config, max_files=20):
     
     return "\n\n".join(content)
 
-def generate_directory_metadata(directory, gen_struct_path, template_path):
+def generate_directory_metadata(directory, template_path):
     logging.info(f"Generating metadata for directory: {directory}")
     
     # Read and format the template
@@ -69,7 +76,7 @@ def generate_directory_metadata(directory, gen_struct_path, template_path):
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f) or {}
         
-        # Get content summary
+    # Get content summary
     content_summary = get_content_summary(directory, config)
         
     # Format the template with directory information
@@ -79,6 +86,7 @@ def generate_directory_metadata(directory, gen_struct_path, template_path):
     )
     print(f"Formatted template with content summary of length: {len(content_summary)}")
     print(input_content)
+    
     # Define the JSON schema
     schema = {
         "type": "object",
@@ -93,38 +101,11 @@ def generate_directory_metadata(directory, gen_struct_path, template_path):
         "additionalProperties": False
     }
 
-    # Create temporary files for input and schema
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as temp_input:
-        temp_input.write(input_content)
-        temp_input_path = temp_input.name
+    # Generate the structured content directly
+    metadata = generate_structured_content(input_content, schema)
+    return metadata
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_schema:
-        json.dump(schema, temp_schema)
-        schema_file = temp_schema.name
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_output:
-        temp_output_path = temp_output.name
-
-    try:
-        cmd = [
-            'python', gen_struct_path,
-            temp_input_path, temp_output_path, schema_file
-        ]
-
-        subprocess.run(cmd, check=True)
-
-        with open(temp_output_path, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-        return metadata
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error running gen_struct.py: {e}")
-        return None
-    finally:
-        os.unlink(temp_input_path)
-        os.unlink(temp_output_path)
-        os.unlink(schema_file)
-
-def update_directory_metadata(directory, gen_struct_path, template_path):
+def update_directory_metadata(directory, template_path):
     logging.info(f"Processing directory: {directory}")
     config_path = os.path.join(directory, 'config.yml')
     if not os.path.exists(config_path):
@@ -139,7 +120,7 @@ def update_directory_metadata(directory, gen_struct_path, template_path):
         logging.info(f"Skipping {directory} as it already has description")
         return
 
-    metadata = generate_directory_metadata(directory, gen_struct_path, template_path)
+    metadata = generate_directory_metadata(directory, template_path)
     print("metadata", metadata)
     if metadata:
         config.update(metadata)
@@ -153,7 +134,6 @@ def update_directory_metadata(directory, gen_struct_path, template_path):
 def gen_dir_meta_main(root_directory="."):
     """Generate metadata for directories in the project"""
     logging.info("Starting directory metadata generation")
-    gen_struct_path = os.path.join(root_directory, '.github/scripts/ai/gen_struct.py')
     template_path = os.path.join(root_directory, '.github/prompts/gen_dir_meta.md.template')
     
     processed_count = 0
@@ -162,7 +142,7 @@ def gen_dir_meta_main(root_directory="."):
             logging.info(f"Ignoring directory {root}")
             continue
         if 'config.yml' in files:
-            update_directory_metadata(root, gen_struct_path, template_path)
+            update_directory_metadata(root, template_path)
             processed_count += 1
     
     logging.info(f"Finished processing {processed_count} directories")

@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 import os
 import yaml
-from utils import count_files_recursive, natural_sort_key
+from typing import List, Dict, Callable
+from .utils import count_files_recursive, natural_sort_key
 
 class ContentProcessor:
     """Base class for processing different types of content"""

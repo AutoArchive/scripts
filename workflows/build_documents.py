@@ -10,6 +10,15 @@ import logging
 from pathlib import Path
 from typing import List, Tuple, Dict
 
+# Add parent directory to Python path for relative imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from scripts.toc.her_toc import her_toc_main
+from scripts.file.rename import rename_main
+
 def load_config(config_path):
     """Load configuration from digital.yml"""
     with open(config_path, 'r', encoding='utf-8') as f:
@@ -43,7 +52,6 @@ def run_script(script_path: str, description: str):
 def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     """Get the list of scripts for document building"""
     scripts = [
-        ('python .github/scripts/file/rename.py', 'File renaming'),
         ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
         ('python .github/scripts/config/catalog.py', 'Global catalog generation'),
         ('python .github/scripts/config/get_md5_list.py', 'MD5 list generation'),
@@ -58,15 +66,11 @@ def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     
     if generate_wordcloud:
         scripts.append(('python .github/scripts/page/gen_wordcloud.py', 'Wordcloud generation'))
-        scripts.append(('python .github/scripts/toc/her_toc.py --wordcloud', 'Table of contents generation'))
-    else:
-        scripts.append(('python .github/scripts/toc/her_toc.py', 'Table of contents generation'))
     return scripts
 
 def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     """Get the list of scripts for webpage building"""
     scripts = [
-        ('python .github/scripts/file/rename.py', 'File renaming'),
         ('python .github/scripts/file/clean_markdown.py', 'Clean markdown'),
         ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
         ('python .github/scripts/config/catalog.py', 'Global catalog generation'),
@@ -81,9 +85,6 @@ def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
     
     if generate_wordcloud:
         scripts.append(('python .github/scripts/page/gen_wordcloud.py', 'Wordcloud generation'))
-        scripts.append(('python .github/scripts/toc/her_toc.py --wordcloud', 'Table of contents generation'))
-    else:
-        scripts.append(('python .github/scripts/toc/her_toc.py', 'Table of contents generation'))
     
     scripts.extend([
         ('python .github/scripts/file/add_config_from_page.py', 'Second metadata addition'),
@@ -117,12 +118,22 @@ def main():
     # Clean directories
     clean_directories()
 
+    # Run file renaming
+    logging.info("Running file renaming...")
+    rename_main('.')
+    logging.info("File renaming completed!")
+
     # Get the appropriate script list based on build type
     scripts = get_document_scripts(generate_wordcloud) if args.type == 'document' else get_webpage_scripts(generate_wordcloud)
 
     # Execute main scripts
     for script_path, description in scripts:
         run_script(script_path, description)
+
+    # Generate table of contents using her_toc module
+    logging.info("Generating table of contents...")
+    her_toc_main(format='table', wordcloud=generate_wordcloud, start_dir='.')
+    logging.info("Table of contents generation completed!")
 
     # Execute final scripts
     for script_path, description in get_final_scripts():

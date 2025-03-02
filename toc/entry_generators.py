@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
-from utils import extract_metadata_from_markdown, natural_sort_key
+import yaml
+from .utils import extract_metadata_from_markdown, natural_sort_key
 
 class EntryGenerator:
     """Base class for generating entries"""

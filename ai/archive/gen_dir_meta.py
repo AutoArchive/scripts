@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import yaml
 import json
@@ -6,7 +7,7 @@ import tempfile
 import logging
 from pathlib import Path
 from ignore import load_ignore_patterns, is_ignored
-from utils import extract_metadata_from_markdown
+from ....toc.utils import extract_metadata_from_markdown
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

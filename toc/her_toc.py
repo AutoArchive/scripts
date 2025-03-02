@@ -2,10 +2,10 @@
 import os
 import yaml
 import argparse
-from utils import *
-from entry_generators import *
-from content_processors import *
-from toc_formatters import TableTOCFormatter, MarkdownListTOCFormatter
+from .utils import *
+from .entry_generators import *
+from .content_processors import *
+from .toc_formatters import TableTOCFormatter, MarkdownListTOCFormatter
 import pandas as pd
 import requests
 from io import StringIO

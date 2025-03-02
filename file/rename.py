@@ -1,6 +1,7 @@
 import os
 import re
 import yaml
+from typing import Optional
 
 def rename_files_in_directory(directory: str):
     """Recursively rename files in the directory to remove spaces and special characters."""
@@ -93,10 +94,16 @@ def update_download_links(directory: str):
             except Exception as e:
                 print(f"Error processing config at {config_path}: {e}")
 
-def main():
-    directory = '.'  # Change this to the directory you want to process
+def rename_main(base_path: Optional[str] = None) -> None:
+    """
+    Main function to rename files and update download links.
+    
+    Args:
+        base_path (Optional[str]): Base directory path to process. Defaults to current directory.
+    """
+    directory = base_path if base_path is not None else '.'
     rename_files_in_directory(directory)
     update_download_links(directory)
 
 if __name__ == "__main__":
-    main() 
+    rename_main() 

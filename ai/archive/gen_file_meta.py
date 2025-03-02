@@ -11,12 +11,6 @@ from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 import epub2txt
 
-# Add parent directory to path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(os.path.dirname(current_dir))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
-
 from ..gen_struct import generate_structured_content
 
 ignore_patterns = load_ignore_patterns()
@@ -248,7 +242,7 @@ def update_metadata(directory: str, template_path: str) -> None:
         # Execute in parallel
         list(executor.map(process_single_file, args_list))
 
-def gen_file_meta_main(base_dir: str = '.') -> Dict[str, Any]:
+def gen_file_meta_main(base_dir: str = '.', template_path: str = '.github/prompts/gen_file_meta.md.template') -> Dict[str, Any]:
     """
     Main function to generate file metadata.
     
@@ -258,18 +252,14 @@ def gen_file_meta_main(base_dir: str = '.') -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: Generated metadata
     """
-    try:
-        os.chdir(base_dir)  # Change to base directory
-        
-        template_path = '.github/prompts/gen_file_meta.md.template'
-            
-        update_metadata('.', template_path)
+    try:        
+        for root, dirs, files in os.walk(base_dir):
+            if is_ignored(root, ignore_patterns):
+                logging.info(f"Ignoring directory {root}")
+                continue
+            update_metadata(root, template_path)
         
         # Return config data from root directory
-        config_path = os.path.join('.', 'config.yml')
-        if os.path.exists(config_path):
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f)
         return {}
     except Exception as e:
         logging.error(f"Error generating file metadata: {e}")

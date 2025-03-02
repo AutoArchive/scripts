@@ -114,14 +114,46 @@ def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[callable, str]]:
         (gen_search_index_main, 'Search index generation'),
     ])
     
-
     return scripts
 
+def get_all_available_scripts() -> Dict[str, callable]:
+    """Get a dictionary of all available scripts with their normalized names as keys"""
+    all_scripts = {
+        'file_renaming': rename_main,
+        'entry_detection': detect_entry_main,
+        'catalog_generation': catalog_main,
+        'md5_list_generation': md5_list_main,
+        'visitor_count_update': visitor_main,
+        'page_generation': gen_page_main,
+        'file_meta_generation': gen_file_meta_main,
+        'metadata_addition': add_config_main,
+        'config_from_page': add_config_from_page_main,
+        'independence_info_generation': independence_info_main,
+        'text_embedding': embed_text_main,
+        'directory_meta_generation': gen_dir_meta_main,
+        'wordcloud_generation': gen_wordcloud_main,
+        'search_exclude_addition': add_search_exclude_main,
+        'search_index_generation': gen_search_index_main,
+        'table_of_contents': her_toc_main
+    }
+    return all_scripts
+
+def get_script_choices() -> List[str]:
+    """Get a list of all available script choices for the argument parser"""
+    return list(get_all_available_scripts().keys())
+
 def main():
+    # Get all available script choices for the help text
+    script_choices = get_script_choices()
+    
     parser = argparse.ArgumentParser(description='Build documents with configuration')
     parser.add_argument('--config', default='digital.yml', help='Path to configuration file')
     parser.add_argument('--type', choices=['document', 'webpage'], default='document',
                       help='Type of build to perform')
+    parser.add_argument('--script', choices=script_choices, 
+                      help='Run only a specific script instead of the full workflow')
+    parser.add_argument('--no-clean', action='store_true', 
+                      help='Do not clean directories before running (useful with --script)')
     args = parser.parse_args()
 
     setup_logging()
@@ -134,8 +166,31 @@ def main():
     # Get wordcloud configuration
     generate_wordcloud = build_config.get('generate_wordcloud', False)
 
-    # Clean directories
-    clean_directories()
+    # Clean directories if not using --no-clean
+    if not args.no_clean:
+        clean_directories()
+
+    # If a specific script is requested, run only that script
+    if args.script:
+        all_scripts = get_all_available_scripts()
+        script_func = all_scripts.get(args.script)
+        
+        if not script_func:
+            logging.error(f"Script '{args.script}' not found")
+            sys.exit(1)
+            
+        logging.info(f"Running single script: {args.script}...")
+        try:
+            # Special handling for table_of_contents which has different parameters
+            if args.script == 'table_of_contents':
+                script_func(format='table', wordcloud=generate_wordcloud, start_dir='.')
+            else:
+                script_func('.')
+            logging.info(f"Script '{args.script}' completed successfully!")
+        except Exception as e:
+            logging.error(f"Script '{args.script}' failed: {e}")
+            sys.exit(1)
+        return
 
     # Get the appropriate script list based on build type
     scripts = get_document_scripts(generate_wordcloud) if args.type == 'document' else get_webpage_scripts(generate_wordcloud)

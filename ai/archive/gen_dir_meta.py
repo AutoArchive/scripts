@@ -6,12 +6,6 @@ import logging
 from pathlib import Path
 import sys
 
-# Add parent directory to path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(os.path.dirname(current_dir))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
-
 from ..gen_struct import generate_structured_content
 from .ignore import load_ignore_patterns, is_ignored
 from .utils import extract_metadata_from_markdown
@@ -131,10 +125,9 @@ def update_directory_metadata(directory, template_path):
             yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
             logging.info(f"Saved config for {directory}")
 
-def gen_dir_meta_main(root_directory="."):
+def gen_dir_meta_main(root_directory=".", template_path: str = '.github/prompts/gen_dir_meta.md.template'):
     """Generate metadata for directories in the project"""
     logging.info("Starting directory metadata generation")
-    template_path = os.path.join(root_directory, '.github/prompts/gen_dir_meta.md.template')
     
     processed_count = 0
     for root, dirs, files in os.walk(root_directory):

@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 import os
 import yaml
 from pathlib import Path
 import sys
-import argparse  # Add this import
+import argparse
+from typing import Dict, Optional
 
 def find_config_files(root_dir, max_depth=2):
     """
@@ -56,20 +58,27 @@ def generate_catalog(catalog, output_file):
         print(f"Error generating catalog file: {e}")
         sys.exit(1)  # Exit on error
 
-def main():
-    try:
-        # Add argument parser
-        parser = argparse.ArgumentParser(description='Generate catalog of config files')
-        parser.add_argument('--max-depth', type=int, default=2,
-                          help='Maximum directory depth to search (default: 2)')
-        args = parser.parse_args()
-
-        # Get the project root directory (assuming script is in project/scripts)
-        root_dir = "./"
-        output_file = os.path.join(root_dir, '.github', 'catalog.yml')
+def catalog_main(base_dir: str = '.', max_depth: int = 2, output_file: Optional[str] = None) -> Dict:
+    """
+    Main function to generate catalog of config files.
+    
+    Args:
+        base_dir (str): Base directory to start searching from
+        max_depth (int): Maximum directory depth to search
+        output_file (Optional[str]): Path to output catalog file. If None, uses '.github/catalog.yml' in base_dir
         
+    Returns:
+        Dict: Generated catalog dictionary
+    """
+    try:
+        if output_file is None:
+            output_file = os.path.join(base_dir, '.github', 'catalog.yml')
+            
+        # Change to base directory
+        os.chdir(base_dir)
+            
         # Find all config files and their descriptions
-        catalog = find_config_files(root_dir, args.max_depth)
+        catalog = find_config_files('.', max_depth)
         
         # Generate the catalog file
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -77,9 +86,15 @@ def main():
         
         print(f"Catalog generated successfully at {output_file}")
         print(f"Found {len(catalog)} directories with config files")
+        
+        return catalog
     except Exception as e:
-        print(f"Error in main execution: {e}")
-        sys.exit(1)  # Exit on error
+        print(f"Error in catalog generation: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Generate catalog of config files')
+    parser.add_argument('--max-depth', type=int, default=2,
+                      help='Maximum directory depth to search (default: 2)')
+    args = parser.parse_args()
+    catalog_main(max_depth=args.max_depth)

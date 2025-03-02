@@ -2,6 +2,7 @@ import yaml
 from datetime import datetime
 from collections import defaultdict
 import argparse
+import os
 
 def load_search_index(filepath='search_index.yml'):
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -58,6 +59,13 @@ def analyze_index(input_file='search_index.yml', output_file=None):
         print("\nRegion Summary:")
         for region, count in analysis_results['region_summary'].items():
             print(f"{region}: {count} files")
+
+def analysis_search_index_main(root_directory="."):
+    """Analyze search index and generate statistics"""
+    input_file = os.path.join(root_directory, "search_index.yml")
+    output_file = os.path.join(root_directory, "search_index_analysis.yml")
+    analyze_index(input_file, output_file)
+    return output_file
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Analyze search index YAML file')

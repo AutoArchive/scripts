@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import logging
 import pdfplumber
-from ignore import load_ignore_patterns, is_ignored
+from .ignore import load_ignore_patterns, is_ignored
 import docx2txt
 import concurrent.futures
 from typing import List, Dict, Any
@@ -278,16 +278,37 @@ def update_metadata(directory: str, gen_struct_path: str, template_path: str) ->
         # Execute in parallel
         list(executor.map(process_single_file, args_list))
 
-def main():
-    gen_struct_path = '.github/scripts/ai/gen_struct.py'
-    template_path = '.github/prompts/gen_file_meta.md.template'
-    root_directory = '.'  # Start from the current directory
-
-    for root, dirs, files in os.walk(root_directory):
-        if is_ignored(root, ignore_patterns):
-            logging.info(f"Ignoring directory {root}")
-            continue
-        update_metadata(root, gen_struct_path, template_path)
+def gen_file_meta_main(base_dir: str = '.', gen_struct_path: str = None, template_path: str = None) -> Dict[str, Any]:
+    """
+    Main function to generate file metadata.
+    
+    Args:
+        base_dir (str): Base directory to process from
+        gen_struct_path (str): Path to gen_struct.py script
+        template_path (str): Path to template file
+        
+    Returns:
+        Dict[str, Any]: Generated metadata
+    """
+    try:
+        os.chdir(base_dir)  # Change to base directory
+        
+        if gen_struct_path is None:
+            gen_struct_path = '.github/scripts/ai/gen_struct.py'
+        if template_path is None:
+            template_path = '.github/prompts/gen_file_meta.md.template'
+            
+        update_metadata('.', gen_struct_path, template_path)
+        
+        # Return config data from root directory
+        config_path = os.path.join('.', 'config.yml')
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return yaml.safe_load(f)
+        return {}
+    except Exception as e:
+        logging.error(f"Error generating file metadata: {e}")
+        return {}
 
 if __name__ == "__main__":
-    main()
+    gen_file_meta_main()

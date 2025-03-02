@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import yaml
 import sys
@@ -5,6 +6,7 @@ import argparse
 import subprocess  # For git check-ignore
 import re  # For regex
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 def load_ignore_patterns():
     """
@@ -131,29 +133,40 @@ def generate_md5_catalog(md5_catalog, output_file):
         print(f"Error generating MD5 catalog file: {e}")
         sys.exit(1)
 
-def main():
+def md5_list_main(
+    base_dir: str = '.',
+    max_depth: int = 2,
+    output_file: Optional[str] = None,
+    fail_on_duplicates: bool = False,
+    remove_duplicates: bool = False
+) -> Tuple[Dict, List[str]]:
+    """
+    Main function to generate MD5 list from config files.
+    
+    Args:
+        base_dir (str): Base directory to start searching from
+        max_depth (int): Maximum directory depth to search
+        output_file (Optional[str]): Path to output MD5 list file. If None, uses '.github/md5.yml' in base_dir
+        fail_on_duplicates (bool): Whether to exit with error if duplicates are found
+        remove_duplicates (bool): Whether to remove duplicate files
+        
+    Returns:
+        Tuple[Dict, List[str]]: (MD5 catalog dictionary, List of removed duplicates)
+    """
     try:
-        parser = argparse.ArgumentParser(description='Generate catalog of MD5 values from config files')
-        parser.add_argument('--max-depth', type=int, default=2,
-                            help='Maximum directory depth to search (default: 2)')
-        parser.add_argument('--fail-on-duplicates', action='store_true',
-                            help='Exit with error if duplicate MD5 hashes are found')
-        parser.add_argument('--remove-duplicates', action='store_true',
-                            help='Remove duplicate files (keeps the first occurrence)')
-        args = parser.parse_args()
-
-        root_dir = "./"
-        output_file = os.path.join(root_dir, '.github', 'md5.yml')
+        if output_file is None:
+            output_file = os.path.join(base_dir, '.github', 'md5.yml')
 
         # Load ignore patterns and compile regexes
         ignore_regexes = load_ignore_patterns()
 
         # Find all config files and extract MD5 information
-        md5_catalog = find_config_files(root_dir, ignore_regexes, args.max_depth)
+        md5_catalog = find_config_files(base_dir, ignore_regexes, max_depth)
 
         # Modified duplicate checking and removal logic
         md5_to_files = {}
         duplicates_to_remove = set()
+        removed_files = []
 
         # First pass: collect all files with same MD5
         for filename, info in md5_catalog.items():
@@ -165,23 +178,25 @@ def main():
                 md5_to_files[md5_hash] = [filename]
 
         # Remove duplicates if requested
-        if args.remove_duplicates:
+        if remove_duplicates:
             for duplicate in duplicates_to_remove:
                 # Remove the duplicate file
                 os.remove(md5_catalog[duplicate]['path'])
+                removed_files.append(md5_catalog[duplicate]['path'])
                 
                 # Check and remove associated page.md file
                 file_path = md5_catalog[duplicate]['path']
                 page_md_path = os.path.splitext(file_path)[0] + '_page.md'
                 if os.path.exists(page_md_path):
                     os.remove(page_md_path)
+                    removed_files.append(page_md_path)
                     print(f"Removed associated page.md file: {page_md_path}")
                 
                 del md5_catalog[duplicate]
                 print(f"Removed duplicate file: {duplicate}")
 
         has_duplicates = len(duplicates_to_remove) > 0
-        if has_duplicates and args.fail_on_duplicates and not args.remove_duplicates:
+        if has_duplicates and fail_on_duplicates and not remove_duplicates:
             print("Error: Duplicate MD5 hashes found. Exiting.")
             sys.exit(1)
 
@@ -191,9 +206,24 @@ def main():
 
         print(f"MD5 catalog generated successfully at {output_file}")
         print(f"Found {len(md5_catalog)} files with MD5 values")
+        
+        return md5_catalog, removed_files
     except Exception as e:
-        print(f"Error in main execution: {e}")
+        print(f"Error in MD5 list generation: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Generate catalog of MD5 values from config files')
+    parser.add_argument('--max-depth', type=int, default=2,
+                      help='Maximum directory depth to search (default: 2)')
+    parser.add_argument('--fail-on-duplicates', action='store_true',
+                      help='Exit with error if duplicate MD5 hashes are found')
+    parser.add_argument('--remove-duplicates', action='store_true',
+                      help='Remove duplicate files (keeps the first occurrence)')
+    args = parser.parse_args()
+    
+    md5_list_main(
+        max_depth=args.max_depth,
+        fail_on_duplicates=args.fail_on_duplicates,
+        remove_duplicates=args.remove_duplicates
+    )

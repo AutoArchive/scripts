@@ -78,5 +78,9 @@ def add_search_exclude(directory):
         subdir_path = os.path.join(directory, subdir)
         add_search_exclude(subdir_path)
 
+def add_search_exclude_main(root_directory="."):
+    """Add search exclude markers to markdown files"""
+    add_search_exclude(root_directory)
+
 if __name__ == "__main__":
     add_search_exclude('.')

@@ -6,8 +6,8 @@ import subprocess
 import tempfile
 import logging
 from pathlib import Path
-from ignore import load_ignore_patterns, is_ignored
-from ....toc.utils import extract_metadata_from_markdown
+from .ignore import load_ignore_patterns, is_ignored
+from .utils import extract_metadata_from_markdown
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -150,12 +150,12 @@ def update_directory_metadata(directory, gen_struct_path, template_path):
             yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
             logging.info(f"Saved config for {directory}")
 
-def main():
+def gen_dir_meta_main(root_directory="."):
+    """Generate metadata for directories in the project"""
     logging.info("Starting directory metadata generation")
-    gen_struct_path = '.github/scripts/ai/gen_struct.py'
-    template_path = '.github/prompts/gen_dir_meta.md.template'
-    root_directory = '.'  # Start from the current directory
-
+    gen_struct_path = os.path.join(root_directory, '.github/scripts/ai/gen_struct.py')
+    template_path = os.path.join(root_directory, '.github/prompts/gen_dir_meta.md.template')
+    
     processed_count = 0
     for root, dirs, files in os.walk(root_directory):
         if is_ignored(root, ignore_patterns):
@@ -166,6 +166,9 @@ def main():
             processed_count += 1
     
     logging.info(f"Finished processing {processed_count} directories")
+
+def main():
+    gen_dir_meta_main()
 
 if __name__ == "__main__":
     main()

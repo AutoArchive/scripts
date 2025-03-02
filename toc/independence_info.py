@@ -5,6 +5,7 @@ import json
 import re
 import requests
 from pathlib import Path
+from typing import List, Dict, Optional
 
 def read_file_content(path):
     """Read file content from local path or remote URL."""
@@ -87,6 +88,25 @@ def process_independence_to_json():
         json.dump(all_entries, f, ensure_ascii=False, indent=2)
     
     print(f"Generated JSON files in {output_dir}")
+    return all_entries
+
+def independence_info_main(base_dir: str = '.', output_file: Optional[str] = None) -> List[Dict]:
+    """
+    Main function to process independence information.
+    
+    Args:
+        base_dir (str): Base directory to process from
+        output_file (Optional[str]): Path to output file. If None, uses 'independence_repo.json'
+        
+    Returns:
+        List[Dict]: List of processed independence entries
+    """
+    try:
+        os.chdir(base_dir)  # Change to base directory
+        return process_independence_to_json()
+    except Exception as e:
+        print(f"Error processing independence info: {e}")
+        return []
 
 if __name__ == "__main__":
-    process_independence_to_json()
+    independence_info_main()

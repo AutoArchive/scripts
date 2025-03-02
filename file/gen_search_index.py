@@ -1,7 +1,7 @@
 import os
 import re
 import yaml
-from ignore import load_ignore_patterns, is_ignored
+from .ignore import load_ignore_patterns, is_ignored
 from datetime import datetime  # Add at top with other imports
 
 def load_yaml(file_path):
@@ -165,6 +165,12 @@ def update_files(root_dir, output_path):
     save_yaml(output_path, search_index)
     print(f"Generated search index at {output_path}")
     print(f"Total files processed: {files_processed}")  # Print total
+
+def gen_search_index_main(root_directory="."):
+    """Generate search index for the site content"""
+    output_path = os.path.join(root_directory, "search_index.yml")
+    update_files(root_directory, output_path)
+    return output_path
 
 if __name__ == "__main__":
     root_directory = "."

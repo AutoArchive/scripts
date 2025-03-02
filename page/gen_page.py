@@ -1,5 +1,6 @@
 import os
 import yaml
+from typing import Optional, Dict
 
 def generate_metadata_page(file_info, directory):
     """Generate a markdown page for a file based on its metadata."""
@@ -97,5 +98,30 @@ def process_directory(directory):
         subdir_path = os.path.join(directory, subdir)
         process_directory(subdir_path)
 
+def gen_page_main(base_dir: str = '.', template_dir: Optional[str] = None) -> Dict:
+    """
+    Main function to generate metadata pages for files.
+    
+    Args:
+        base_dir (str): Base directory to process from
+        template_dir (Optional[str]): Directory containing templates. If None, uses '.github/templates'
+        
+    Returns:
+        Dict: Configuration data
+    """
+    try:
+        os.chdir(base_dir)  # Change to base directory
+        process_directory('.')
+        
+        # Return config data from root directory
+        config_path = os.path.join('.', 'config.yml')
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return yaml.safe_load(f)
+        return {}
+    except Exception as e:
+        print(f"Error generating pages: {e}")
+        return {}
+
 if __name__ == "__main__":
-    process_directory('.')
+    gen_page_main()

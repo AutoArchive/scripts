@@ -88,8 +88,11 @@ def update_files(root_dir):
                 else:
                     print(f"No link found for {file['name']}")
 
+def add_config_from_page_main(root_directory="."):
+    """Update config data using information from page files"""
+    update_files(root_directory)
+
 if __name__ == "__main__":
     # Adjust these paths according to your project structure
     root_directory = "."  # Start from current directory
-    
     update_files(root_directory)

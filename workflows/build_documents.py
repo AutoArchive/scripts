@@ -18,6 +18,21 @@ if parent_dir not in sys.path:
 
 from scripts.toc.her_toc import her_toc_main
 from scripts.file.rename import rename_main
+from scripts.config.hierarchy.detect_entry import detect_entry_main
+from scripts.config.catalog import catalog_main
+from scripts.config.get_md5_list import md5_list_main
+from scripts.config.visitor import visitor_main
+from scripts.page.gen_page import gen_page_main
+from scripts.ai.archive.gen_file_meta import gen_file_meta_main
+from scripts.file.add_config import add_config_main
+from scripts.toc.independence_info import independence_info_main
+from scripts.page.embed_text import embed_text_main
+from scripts.ai.archive.gen_dir_meta import gen_dir_meta_main
+from scripts.page.gen_wordcloud import gen_wordcloud_main
+from scripts.page.add_search_exclude import add_search_exclude_main
+from scripts.file.add_config_from_page import add_config_from_page_main
+from scripts.file.gen_search_index import gen_search_index_main
+from scripts.file.analysis_search_index import analysis_search_index_main
 
 def load_config(config_path):
     """Load configuration from digital.yml"""
@@ -49,54 +64,64 @@ def run_script(script_path: str, description: str):
         sys.exit(1)
     logging.info(f"{description} completed successfully!")
 
-def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
+def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[callable, str]]:
     """Get the list of scripts for document building"""
+    # Start with common initial scripts
     scripts = [
-        ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
-        ('python .github/scripts/config/catalog.py', 'Global catalog generation'),
-        ('python .github/scripts/config/get_md5_list.py', 'MD5 list generation'),
-        ('python .github/scripts/config/visitor.py', 'Visitor count addition'),
-        ('python .github/scripts/page/gen_page.py', 'Page generation'),
-        ('python .github/scripts/ai/archive/gen_file_meta.py', 'File meta generation'),
-        ('python .github/scripts/file/add_config.py', 'Metadata addition'),
-        ('python .github/scripts/toc/independence_info.py', 'Independence info generation'),
-        ('python .github/scripts/page/embed_text.py', 'Text embedding'),
-        ('python .github/scripts/ai/archive/gen_dir_meta.py', 'Directory meta generation'),
+        (rename_main, 'File renaming'),
+        (detect_entry_main, 'Entry detection'),
+        (catalog_main, 'Catalog generation'),
+        (md5_list_main, 'MD5 list generation'),
+        (visitor_main, 'Visitor count update'),
+        (gen_page_main, 'Page generation'),
+        (gen_file_meta_main, 'File meta generation'),
+        (add_config_main, 'Metadata addition'),
+        (independence_info_main, 'Independence info generation'),
+        (embed_text_main, 'Text embedding'),
+        (gen_dir_meta_main, 'Directory meta generation'),
     ]
     
     if generate_wordcloud:
-        scripts.append(('python .github/scripts/page/gen_wordcloud.py', 'Wordcloud generation'))
+        scripts.append((gen_wordcloud_main, 'Wordcloud generation'))
+    
+    # Add final scripts
+    scripts.extend([
+        (gen_search_index_main, 'Search index generation'),
+        (analysis_search_index_main, 'Search index analysis'),
+    ])
+    
     return scripts
 
-def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[str, str]]:
+def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[callable, str]]:
     """Get the list of scripts for webpage building"""
+    # Start with common initial scripts
     scripts = [
-        ('python .github/scripts/file/clean_markdown.py', 'Clean markdown'),
-        ('python .github/scripts/config/hierarchy/detect_entry.py', 'Entry detection'),
-        ('python .github/scripts/config/catalog.py', 'Global catalog generation'),
-        ('python .github/scripts/config/get_md5_list.py', 'MD5 list generation'),
-        ('python .github/scripts/config/visitor.py', 'Visitor count addition'),
-        ('python .github/scripts/page/gen_page.py', 'Page generation'),
-        ('python .github/scripts/page/add_search_exclude.py', 'Search exclude addition'),
-        ('python .github/scripts/ai/archive/gen_file_meta.py', 'File meta generation'),
-        ('python .github/scripts/file/add_config_from_page.py', 'Metadata addition'),
-        ('python .github/scripts/ai/archive/gen_dir_meta.py', 'Directory meta generation'),
+        (rename_main, 'File renaming'),
+        (detect_entry_main, 'Entry detection'),
+        (catalog_main, 'Catalog generation'),
+        (md5_list_main, 'MD5 list generation'),
+        (visitor_main, 'Visitor count update'),
+        (gen_page_main, 'Page generation'),
+        (add_search_exclude_main, 'Search exclude addition'),
+        (gen_file_meta_main, 'File meta generation'),
+        (add_config_from_page_main, 'Metadata addition'),
+        (gen_dir_meta_main, 'Directory meta generation'),
     ]
-    
+
     if generate_wordcloud:
-        scripts.append(('python .github/scripts/page/gen_wordcloud.py', 'Wordcloud generation'))
+        scripts.append((gen_wordcloud_main, 'Wordcloud generation'))
     
     scripts.extend([
-        ('python .github/scripts/file/add_config_from_page.py', 'Second metadata addition'),
+        (add_config_from_page_main, 'Second metadata addition'),
     ])
+    
+    # Add final scripts
+    scripts.extend([
+        (gen_search_index_main, 'Search index generation'),
+        (analysis_search_index_main, 'Search index analysis'),
+    ])
+    
     return scripts
-
-def get_final_scripts() -> List[Tuple[str, str]]:
-    """Get the list of final scripts that run for both types"""
-    return [
-        ('python .github/scripts/file/gen_search_index.py', 'Search index generation'),
-        ('python .github/scripts/file/analysis_search_index.py', 'Search index analysis'),
-    ]
 
 def main():
     parser = argparse.ArgumentParser(description='Build documents with configuration')
@@ -118,26 +143,23 @@ def main():
     # Clean directories
     clean_directories()
 
-    # Run file renaming
-    logging.info("Running file renaming...")
-    rename_main('.')
-    logging.info("File renaming completed!")
-
     # Get the appropriate script list based on build type
     scripts = get_document_scripts(generate_wordcloud) if args.type == 'document' else get_webpage_scripts(generate_wordcloud)
 
-    # Execute main scripts
-    for script_path, description in scripts:
-        run_script(script_path, description)
+    # Execute scripts
+    for script_func, description in scripts:
+        logging.info(f"Running {description}...")
+        try:
+            script_func('.')
+            logging.info(f"{description} completed!")
+        except Exception as e:
+            logging.error(f"Script {description} failed: {e}")
+            sys.exit(1)
 
     # Generate table of contents using her_toc module
     logging.info("Generating table of contents...")
     her_toc_main(format='table', wordcloud=generate_wordcloud, start_dir='.')
     logging.info("Table of contents generation completed!")
-
-    # Execute final scripts
-    for script_path, description in get_final_scripts():
-        run_script(script_path, description)
 
 if __name__ == '__main__':
     main() 

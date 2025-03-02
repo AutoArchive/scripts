@@ -248,21 +248,23 @@ def process_page_file(filepath, file_mapping, base_dir, remove_original):
     except Exception as e:
         print(f"Error processing {filepath}: {e}")
 
-def main():
-    parser = argparse.ArgumentParser(description='Process markdown files.')
-    parser.add_argument('--remove-original', default=False, help='Remove the original file and link to the original file')
-    args = parser.parse_args()
-
-    for root, dirs, files in os.walk('.'):
-        if 'config.yml' in files:
-            config_path = os.path.join(root, 'config.yml')
-            print(f"\nFound config at: {config_path}")
-            
-            file_mapping = get_file_mapping_from_config(config_path)
-            
-            for page_file in [f for f in files if f.endswith('_page.md')]:
-                page_path = os.path.join(root, page_file)
-                process_page_file(page_path, file_mapping, root, args.remove_original)
+def embed_text_main(root_directory=".", remove_original=False):
+    """Embed text from document files into markdown pages"""
+    original_dir = os.getcwd()
+    try:
+        os.chdir(root_directory)
+        for root, dirs, files in os.walk('.'):
+            if 'config.yml' in files:
+                config_path = os.path.join(root, 'config.yml')
+                print(f"\nFound config at: {config_path}")
+                
+                file_mapping = get_file_mapping_from_config(config_path)
+                
+                for page_file in [f for f in files if f.endswith('_page.md')]:
+                    page_path = os.path.join(root, page_file)
+                    process_page_file(page_path, file_mapping, root, remove_original)
+    finally:
+        os.chdir(original_dir)
 
 if __name__ == '__main__':
     main()

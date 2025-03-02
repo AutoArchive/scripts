@@ -232,17 +232,33 @@ class EntryDetector:
             subdir_path = os.path.join(directory, subdir)
             self.process_directory_recursive(subdir_path)
 
-def main():
+def detect_entry_main(base_dir: str = '.', digital_yml_path: Optional[str] = None) -> List[str]:
+    """
+    Main function to detect and process entries in the directory structure.
+    
+    Args:
+        base_dir (str): Base directory to start processing from
+        digital_yml_path (Optional[str]): Path to digital.yml file. If None, uses 'digital.yml' in base_dir
+        
+    Returns:
+        List[str]: List of changes made during processing
+    """
+    if digital_yml_path is None:
+        digital_yml_path = os.path.join(base_dir, 'digital.yml')
+        
     detector = EntryDetector()
+    os.chdir(base_dir)  # Change to base directory
     detector.process_directory_recursive()
     
-    # Print changes if any
+    # Return changes if any
     if detector.changes:
         print("\nDetected changes:")
         for change in detector.changes:
             print(change)
     else:
         print("\nNo changes detected.")
+        
+    return detector.changes
 
 if __name__ == "__main__":
     main()

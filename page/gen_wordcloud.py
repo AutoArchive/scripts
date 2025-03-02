@@ -144,5 +144,9 @@ def process_directory(base_path):
             else:
                 print(f"No abstracts found in {root} or its subdirectories")
 
+def gen_wordcloud_main(root_directory="."):
+    """Generate word clouds for abstracts in documents"""
+    process_directory(root_directory)
+
 if __name__ == "__main__":
     process_directory("./")

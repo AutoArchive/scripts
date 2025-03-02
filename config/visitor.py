@@ -5,6 +5,7 @@ import pandas as pd
 import requests
 from io import StringIO
 from datetime import datetime
+from typing import Dict, Optional
 
 def load_ga_data():
     """Load Google Analytics data from GitHub"""
@@ -117,7 +118,7 @@ def process_directory(directory, ga_map):
         if modified:
             # Update the visitor counts in the original content
             with open(config_path, 'w', encoding='utf-8') as f:
-                yaml.dump(config, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
+                yaml.dump(config, f, allow_unicode=True, sort_keys=False)
     
     # Process subdirectories
     if 'subdirs' in config:
@@ -128,17 +129,29 @@ def process_directory(directory, ga_map):
     if modified:
         print(f"Updated {config_path}")
 
-def main():
+def visitor_main(base_dir: str = '.', ga_data_url: Optional[str] = None) -> Dict:
+    """
+    Main function to update visitor counts in config files.
+    
+    Args:
+        base_dir (str): Base directory to start processing from
+        ga_data_url (Optional[str]): URL to Google Analytics data. If None, uses default URL
+        
+    Returns:
+        Dict: Google Analytics data mapping
+    """
     # Load GA data
     ga_map = load_ga_data()
     if ga_map is None:
         print("Failed to load GA data")
-        return
+        return {}
     
     # Start processing from root directory
+    os.chdir(base_dir)  # Change to base directory
     process_directory('.', ga_map)
     
     print("\nFinished updating visitor data in config files")
+    return ga_map
 
 if __name__ == "__main__":
-    main() 
+    visitor_main() 

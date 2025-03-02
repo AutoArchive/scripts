@@ -1,7 +1,7 @@
 from datetime import datetime
 import os
 import yaml
-from ignore import load_ignore_patterns, is_ignored
+from .ignore import load_ignore_patterns, is_ignored
 
 def load_yaml(file_path):
     try:
@@ -95,6 +95,12 @@ def update_files(root_dir, visit_links_path):
                             with open(page_path, 'w', encoding='utf-8') as f:
                                 f.write(content)
                                     
+def add_config_main(root_directory=".", visit_links_path=None):
+    """Add config data to files from visit_links.yml"""
+    if visit_links_path is None:
+        visit_links_path = os.path.join(".github", "visit_links.yml")
+    update_files(root_directory, visit_links_path)
+
 if __name__ == "__main__":
     # Adjust these paths according to your project structure
     root_directory = "."  # Start from current directory

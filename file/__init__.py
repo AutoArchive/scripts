@@ -9,12 +9,10 @@ from .rename import rename_main
 from .add_config import add_config_main
 from .add_config_from_page import add_config_from_page_main
 from .gen_search_index import gen_search_index_main
-from .analysis_search_index import analysis_search_index_main
 
 __all__ = [
     'rename_main',
     'add_config_main',
     'add_config_from_page_main',
     'gen_search_index_main',
-    'analysis_search_index_main'
 ] 

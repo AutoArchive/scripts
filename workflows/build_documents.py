@@ -32,7 +32,6 @@ from scripts.page.gen_wordcloud import gen_wordcloud_main
 from scripts.page.add_search_exclude import add_search_exclude_main
 from scripts.file.add_config_from_page import add_config_from_page_main
 from scripts.file.gen_search_index import gen_search_index_main
-from scripts.file.analysis_search_index import analysis_search_index_main
 
 def load_config(config_path):
     """Load configuration from digital.yml"""
@@ -87,7 +86,6 @@ def get_document_scripts(generate_wordcloud: bool) -> List[Tuple[callable, str]]
     # Add final scripts
     scripts.extend([
         (gen_search_index_main, 'Search index generation'),
-        (analysis_search_index_main, 'Search index analysis'),
     ])
     
     return scripts
@@ -113,14 +111,10 @@ def get_webpage_scripts(generate_wordcloud: bool) -> List[Tuple[callable, str]]:
     
     scripts.extend([
         (add_config_from_page_main, 'Second metadata addition'),
-    ])
-    
-    # Add final scripts
-    scripts.extend([
         (gen_search_index_main, 'Search index generation'),
-        (analysis_search_index_main, 'Search index analysis'),
     ])
     
+
     return scripts
 
 def main():

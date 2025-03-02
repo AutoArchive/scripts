@@ -5,17 +5,28 @@ import argparse
 from utils import *
 from entry_generators import *
 from content_processors import *
+from toc_formatters import TableTOCFormatter, MarkdownListTOCFormatter
 import pandas as pd
 import requests
 from io import StringIO
 
 class TOCGenerator:
     """Generates table of contents for directories and files"""
-    def __init__(self):
+    def __init__(self, formatter_type='table'):
         # Initialize generators
         self.file_generator = FileEntryGenerator()
         self.dir_generator = DirectoryEntryGenerator()
         self.independence_generator = IndependenceEntryGenerator()
+        
+        # Set formatter based on type
+        self.formatter_type = formatter_type
+        if formatter_type == 'table':
+            self.formatter = TableTOCFormatter()
+        elif formatter_type == 'markdown':
+            self.formatter = MarkdownListTOCFormatter()
+        else:
+            print(f"Warning: Unknown formatter type '{formatter_type}', defaulting to table")
+            self.formatter = TableTOCFormatter()
         
         # Initialize processors with generators and formatter
         self.files_processor = FilesProcessor(self.file_generator, self._format_entry)
@@ -36,31 +47,13 @@ class TOCGenerator:
 
     def generate_categorized_toc(self, categories):
         """Generate TOC from categorized content"""
-        toc = []
         type_names = {
             'webpage': '🌐 网页', 'other': '📎 其他',
             'document': '📄 文档', 'image': '🖼️ 图片',
             'video': '🎬 视频', 'audio': '🎵 音频'
         }
         
-        for file_type, years in categories.items():
-            all_entries = []
-            for year_entries in years.values():
-                all_entries.extend(entry for entry, _ in year_entries)
-            
-            if not all_entries:
-                continue
-            
-            toc.append(f"\n### {type_names[file_type]}\n")
-            content_table = self._generate_table(
-                headers=[('标题', '40%'), ('年份', '15%'), ('摘要', '45%')],
-                entries=all_entries,
-                sort_columns=[0, 1],
-                default_sort={'column': 1, 'direction': 'desc', 'type': 'year'}
-            )
-            toc.append(content_table)
-        
-        return "\n".join(toc)
+        return self.formatter.format_categorized_content(categories, type_names)
 
     def process_directory(self, directory, ignore_regexes, include_wordcloud=False):
         """Process a directory to generate README.md based on config.yml"""
@@ -127,12 +120,8 @@ class TOCGenerator:
         if config.get('subdirs'):
             toc_content.append("\n## 📁 子目录\n")
             dir_entries = self.dir_processor.process(config['subdirs'], directory, ignore_regexes)
-            dir_table = self._generate_table(
-                headers=[('目录名', '30%'), ('文件数量', '20%'), ('简介', '50%')],
-                entries=dir_entries,
-                sort_columns=[0, 1]
-            )
-            toc_content.append(dir_table)
+            dir_section = self.formatter.format_directory_content(dir_entries)
+            toc_content.append(dir_section)
 
         # Add wordcloud using markdown
         if include_wordcloud:
@@ -141,14 +130,15 @@ class TOCGenerator:
                 toc_content.append('\n## 📊 词云图 { data-search-exclude }\n')
                 toc_content.append('![词云图](abstracts_wordcloud.png)\n')
         
-        # Add sorting script
-        script_path = os.path.join(os.path.dirname(__file__), 'toc_sort.js')
-        try:
-            with open(script_path, 'r', encoding='utf-8') as f:
-                script_content = f.read()
-                toc_content.append(f'\n<script>\n{script_content}\n</script>\n')
-        except FileNotFoundError:
-            print(f"Warning: Sorting script not found at {script_path}")
+        # Add sorting script only if using table formatter
+        if self.formatter_type == 'table':
+            script_path = os.path.join(os.path.dirname(__file__), 'toc_sort.js')
+            try:
+                with open(script_path, 'r', encoding='utf-8') as f:
+                    script_content = f.read()
+                    toc_content.append(f'\n<script>\n{script_content}\n</script>\n')
+            except FileNotFoundError:
+                print(f"Warning: Sorting script not found at {script_path}")
         
         return "\n".join(toc_content)
 
@@ -319,42 +309,6 @@ class TOCGenerator:
         
         return ''
 
-    def _generate_table(self, headers, entries, sort_columns=None, default_sort=None):
-        """Generate a sortable HTML table
-        Args:
-            headers: List of column headers [(name, width), ...]
-            entries: List of formatted entry strings
-            sort_columns: List of column indices that should be sortable (0-based)
-            default_sort: Dict with {'column': idx, 'direction': 'desc', 'type': 'year|name|count'}
-        """
-        sort_columns = sort_columns or []
-        table = ['<table>']
-        
-        # Generate header
-        table.append('<thead><tr>')
-        for idx, (header, width) in enumerate(headers):
-            if idx in sort_columns:
-                is_default = default_sort and default_sort['column'] == idx
-                direction = default_sort['direction'] if is_default else 'asc'
-                sort_type = default_sort['type'] if is_default else 'text'
-                indicator = ' ▼' if direction == 'desc' else ' ▲' if direction == 'asc' else ''
-                table.append(
-                    f'<th style="width: {width}" data-sortable="true" '
-                    f'data-sort-direction="{direction}" data-sort-type="{sort_type}">'
-                    f'{header}{indicator}</th>'
-                )
-            else:
-                table.append(f'<th style="width: {width}">{header}</th>')
-        table.append('</tr></thead>')
-        
-        # Add entries
-        table.append('<tbody>')
-        table.extend(entries)
-        table.append('</tbody>')
-        table.append('</table>\n')
-        
-        return '\n'.join(table)
-
     def _load_ga_data(self):
         """Load Google Analytics data from GitHub"""
         try:
@@ -453,15 +407,32 @@ class TOCGenerator:
         content.append("\n")
         return "\n".join(content)
 
+def her_toc_main(format='table', wordcloud=False, start_dir='.'):
+    """
+    Generate table of contents for the project.
+    
+    Args:
+        format (str): Format to use for TOC ('table' or 'markdown')
+        wordcloud (bool): Whether to include wordcloud visualizations
+        start_dir (str): Starting directory for TOC generation
+        
+    Returns:
+        str: Success message
+    """
+    ignore_regexes = load_ignore_patterns()
+    toc_generator = TOCGenerator(formatter_type=format)
+    toc_generator.process_directory(start_dir, ignore_regexes, wordcloud)
+    return f"Table of contents generated successfully using {format} format!"
+
 def main():
     parser = argparse.ArgumentParser(description='Generate table of contents for the project')
     parser.add_argument('--wordcloud', action='store_true', help='Include wordcloud visualizations in the output')
+    parser.add_argument('--format', choices=['table', 'markdown'], default='table', 
+                      help='Format to use for the table of contents (default: table)')
     args = parser.parse_args()
     
-    ignore_regexes = load_ignore_patterns()
-    toc_generator = TOCGenerator()
-    toc_generator.process_directory('.', ignore_regexes, args.wordcloud)
-    print("Table of contents generated successfully!")
+    result = her_toc_main(format=args.format, wordcloud=args.wordcloud)
+    print(result)
 
 if __name__ == "__main__":
     main()

@@ -252,18 +252,15 @@ def gen_file_meta_main(base_dir: str = '.', template_path: str = '.github/prompt
     Returns:
         Dict[str, Any]: Generated metadata
     """
-    try:        
-        for root, dirs, files in os.walk(base_dir):
-            if is_ignored(root, ignore_patterns):
-                logging.info(f"Ignoring directory {root}")
-                continue
-            update_metadata(root, template_path)
+    for root, dirs, files in os.walk(base_dir):
+        if is_ignored(root, ignore_patterns):
+            logging.info(f"Ignoring directory {root}")
+            continue
+        update_metadata(root, template_path)
         
-        # Return config data from root directory
-        return {}
-    except Exception as e:
-        logging.error(f"Error generating file metadata: {e}")
-        return {}
+    # Return config data from root directory
+    return {}
+
 
 if __name__ == "__main__":
     gen_file_meta_main()

@@ -24,7 +24,18 @@ def encode_image(image_path):
 
 def generate_cleanup_content(content, schema, image_path=None):
     """Send the prompt and content to OpenAI's API and get the structured content."""
-    
+       
+    load_dotenv()
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    model_name = os.getenv('OPENAI_MODEL_NAME')
+    if not model_name:
+        model_name = "gpt-4o-mini"
+    print(f"Using model: {model_name}")
+    temperature = os.getenv('OPENAI_TEMPERATURE')
+    if not temperature:
+        temperature = 0.7
+    print(f"Using temperature: {temperature}")
+    client = OpenAI()
     messages = [
         {"role": "system", "content": f"You are a helpful assistant that generates structured output based on the following JSON schema: {json.dumps(schema)}"}
     ]
@@ -78,39 +89,22 @@ def generate_structured_content(input_content, schema, image_path=None, output_f
     Returns:
         dict: The structured content generated
     """
-        
-    load_dotenv()
-    openai.api_key = os.getenv('OPENAI_API_KEY')
-    model_name = os.getenv('OPENAI_MODEL_NAME')
-    if not model_name:
-        model_name = "gpt-4o"
-    print(f"Using model: {model_name}")
-    temperature = os.getenv('OPENAI_TEMPERATURE')
-    if not temperature:
-        temperature = 0.7
-    print(f"Using temperature: {temperature}")
-    client = OpenAI()
-    try:
-        # Handle input content as file path or direct content
-        if os.path.isfile(input_content):
-            input_content = read_file(input_content)
+    # Handle input content as file path or direct content
+    if os.path.isfile(input_content):
+        input_content = read_file(input_content)
 
-        # Handle schema as file path or direct schema
-        if isinstance(schema, str) and os.path.isfile(schema):
-            schema = json.loads(read_file(schema))
+    # Handle schema as file path or direct schema
+    if isinstance(schema, str) and os.path.isfile(schema):
+        schema = json.loads(read_file(schema))
 
-        # Generate structured content
-        structured_content = generate_cleanup_content(input_content, schema, image_path)
+    # Generate structured content
+    structured_content = generate_cleanup_content(input_content, schema, image_path)
 
-        # Write to output file if specified
-        if output_file:
-            write_file(output_file, json.dumps(structured_content, indent=2))
+    # Write to output file if specified
+    if output_file:
+        write_file(output_file, json.dumps(structured_content, indent=2))
             
-        return structured_content
-
-    except Exception as e:
-        print(f"An error occurred in generate_structured_content: {e}")
-        return None
+    return structured_content
 
 def main():
     # Set up command-line argument parsing

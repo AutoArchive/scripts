@@ -13,6 +13,8 @@ def rename_files_in_directory(directory: str):
         for filename in files:
             # Generate new filename by replacing spaces and special characters with underscores
             new_filename = re.sub(r'[ \[\]\(\)#]', '_', filename)
+            new_filename = new_filename.replace('soushu2023.com@', '')
+            new_filename = new_filename.replace('搜书吧', '')
             if new_filename != filename:
                 old_file_path = os.path.join(root, filename)
                 new_file_path = os.path.join(root, new_filename)

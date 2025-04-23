@@ -27,7 +27,7 @@ class FileEntryGenerator(EntryGenerator):
     
     def _generate_content_entry(self, name, page_link, file_info, directory):
         year = 'Unknown'
-        archived_date = '9999-12-31'
+        archived_date = '0000-01-01'
         description = ''
         visitors = file_info.get('visitors', 0)  # Get visitor count from config
         
@@ -36,7 +36,7 @@ class FileEntryGenerator(EntryGenerator):
             if os.path.exists(page_path):
                 year, archived_date, description = extract_metadata_from_markdown(page_path)
                 file_info['year'] = year or 'Unknown'
-                file_info['archived_date'] = archived_date or '9999-12-31'
+                file_info['archived_date'] = archived_date or '0000-01-01'
         
         return {
             'type': 'content',

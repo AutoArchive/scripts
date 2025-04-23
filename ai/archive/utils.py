@@ -21,6 +21,6 @@ def extract_metadata_from_markdown(file_path):
 
         # Extract archived date from metadata table
         archived_match = re.search(r'\|\s*Archived Date\s*\|\s*([^|]+)\|', content)
-        archived_date = archived_match.group(1).strip() if archived_match else '9999-12-31'
+        archived_date = archived_match.group(1).strip() if archived_match else '0000-01-01'
 
         return year, archived_date, description

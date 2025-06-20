@@ -61,13 +61,15 @@ def extract_metadata_from_markdown(content):
         for key, value in rows:
             key = key.strip().lower()
             value = value.strip()
-            if key in ['region', 'date', 'author', 'tags', 'original link', 'archived date']:
+            if key in ['standard name', 'region', 'date', 'author', 'tags', 'original link', 'archived date']:
                 if key == 'tags':
                     metadata['tags'] = [tag.strip() for tag in value.split(',')]
                 elif key == 'original link':
                     metadata['link'] = extract_markdown_link(value)
                 elif key in ['date', 'archived date']:
                     metadata[key] = normalize_date(value)
+                elif key == 'standard name':
+                    metadata['standard_name'] = value
                 else:
                     metadata[key] = value
     else:
@@ -135,6 +137,7 @@ def update_files(root_dir, output_path):
                         'size': file_entry.get('size', 0),
                         'md5': file_entry.get('md5', ''),
                         'filename': file_entry.get('filename', ''),
+                        'standard_name': '未知',
                         'link': '',
                         'description': os.path.join(root, file_entry.get('name')),
                         'archived date': '未知',

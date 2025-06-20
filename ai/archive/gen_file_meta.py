@@ -106,6 +106,7 @@ def generate_metadata(file_path, template_path, additional_meta):
     schema = {
         "type": "object",
         "properties": {
+            "standard_name": {"type": "string"},
             "description": {"type": "string"},
             "date": {"type": "string"},
             "author": {"type": "string"},
@@ -115,7 +116,7 @@ def generate_metadata(file_path, template_path, additional_meta):
                 "items": {"type": "string"}
             }
         },
-        "required": ["description", "date", "author", "region", "tags"],
+        "required": ["standard_name", "description", "date", "author", "region", "tags"],
         "additionalProperties": False
     }
 
@@ -165,7 +166,14 @@ def process_single_file(args: tuple) -> None:
             logging.error(f"Failed to convert {page_path} to UTF-8: {e}")
             return
 
-    if '[Unknown description(update needed)]' not in page_content:
+    # Check if any metadata needs updating
+    needs_update = (
+        '[Unknown description(update needed)]' in page_content or
+        '[Unknown standard_name(update needed)]' in page_content or
+        '{standard_name}' in page_content
+    )
+    
+    if not needs_update:
         logging.info(f"Skipping {file_info['filename']} as its page doesn't need updating")
         return
 
@@ -204,6 +212,15 @@ def process_single_file(args: tuple) -> None:
         new_content = new_content.replace(
             '[Unknown region(update needed)]',
             metadata['region']
+        )
+        # Replace standard name placeholders
+        new_content = new_content.replace(
+            '[Unknown standard_name(update needed)]',
+            metadata['standard_name']
+        )
+        new_content = new_content.replace(
+            '{standard_name}',
+            metadata['standard_name']
         )
 
         # Write the updated content back to the page file

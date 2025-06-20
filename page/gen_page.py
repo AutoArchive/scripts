@@ -48,6 +48,7 @@ def generate_metadata_page(file_info, directory):
     content = template_content.format(
         name=name or 'Unknown',
         filename=filename or 'Unknown',
+        standard_name='[Unknown standard_name(update needed)]',
         type=file_info.get('type', 'Unknown') or 'Unknown',
         format=file_info.get('format', 'Unknown') or 'Unknown',
         size=file_info.get('size', 'Unknown') or 'Unknown',

@@ -4,18 +4,71 @@ from pathlib import Path
 import yaml
 import urllib.request
 import shutil
+import tempfile
 from Levenshtein import distance
 
-def download_combined_index():
-    """Download the combined index file from GitHub"""
-    url = "https://github.com/transTerminus/data-analysis/raw/refs/heads/main/index/combined_index.yml"
-    try:
-        urllib.request.urlretrieve(url, "combined_index.yml")
-        print("Successfully downloaded combined_index.yml")
-        return True
-    except Exception as e:
-        print(f"Error downloading combined index: {e}")
-        return False
+def download_search_indices():
+    """Download search_index.yml files from multiple sites"""
+    # Create temp directory for downloads
+    temp_dir = tempfile.mkdtemp(prefix="search_indices_")
+    print(f"Using temporary directory: {temp_dir}")
+
+    sources = [
+        {
+            "name": "变身文学与小说存档库一（剧情向）",
+            "url": "https://xnovel.transchinese.org/search_index.yml",
+            "file": "search_index_1.yml"
+        },
+        {
+            "name": "变身文学与小说存档库二（变百或变嫁）",
+            "url": "https://novel.transchinese.org/search_index.yml",
+            "file": "search_index_2.yml"
+        },
+        {
+            "name": "变身文学与小说存档库三",
+            "url": "https://unovel.transchinese.org/search_index.yml",
+            "file": "search_index_3.yml"
+        }
+    ]
+
+    downloaded_files = []
+
+    for source in sources:
+        try:
+            print(f"Downloading from {source['name']} ({source['url']})...")
+            file_path = os.path.join(temp_dir, source['file'])
+            urllib.request.urlretrieve(source['url'], file_path)
+            print(f"Successfully downloaded {source['file']}")
+            downloaded_files.append(file_path)
+        except Exception as e:
+            print(f"Error downloading from {source['name']}: {e}")
+
+    return downloaded_files, temp_dir
+
+def merge_indices(index_files):
+    """Merge multiple search_index.yml files into a combined index"""
+    combined_data = {}
+
+    for index_file in index_files:
+        try:
+            print(f"Loading {index_file}...")
+            with open(index_file, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f) or {}
+
+            # Merge the data
+            for key, value in data.items():
+                if key not in combined_data:
+                    combined_data[key] = value
+                else:
+                    # If key exists, keep the first occurrence
+                    print(f"Duplicate key found: {key} (keeping first occurrence)")
+
+            print(f"Loaded {len(data)} entries from {index_file}")
+        except Exception as e:
+            print(f"Error loading {index_file}: {e}")
+
+    print(f"Combined {len(combined_data)} total entries from all indices")
+    return combined_data
 
 def should_skip_file(file_path, workspace_dir):
     """Check if file should be skipped based on various criteria"""
@@ -108,114 +161,126 @@ def process_name_check(move_files=False, similarity_threshold=None, prefix_only=
         similarity_threshold: If set, check for similar names within this Levenshtein distance
         prefix_only: If True, only consider prefix matches for similarity
     """
-    # Download and load combined index
-    if not download_combined_index():
-        print("Failed to download combined index. Exiting.")
+    # Download search indices from multiple sources
+    print("Downloading search indices...")
+    downloaded_files, temp_dir = download_search_indices()
+
+    if not downloaded_files:
+        print("Failed to download any search indices. Exiting.")
         return
 
     try:
-        with open('combined_index.yml', 'r', encoding='utf-8') as f:
-            index_data = yaml.safe_load(f) or {}
-    except FileNotFoundError:
-        print("Could not load combined_index.yml")
-        return
+        # Merge the downloaded indices
+        print("\nMerging indices...")
+        index_data = merge_indices(downloaded_files)
 
-    workspace_dir = Path("workspace").resolve()
-    if not workspace_dir.exists():
-        print("Workspace directory not found")
-        return
+        if not index_data:
+            print("Failed to merge indices. Exiting.")
+            return
 
-    # Create repeatname directory if moving files
-    if move_files:
-        repeatname_dir = Path("repeatname").resolve()
-        repeatname_dir.mkdir(exist_ok=True)
+        workspace_dir = Path("workspace").resolve()
+        if not workspace_dir.exists():
+            print("Workspace directory not found")
+            return
 
-    # Get all filenames from combined index with their normalized versions
-    index_filenames = {normalize_filename(Path(key).name): key for key in index_data.keys()}
-    
-    # Keep track of duplicate and similar files
-    duplicate_files = []
-    similar_files = []
-    seen_names = {}  # Change to dict to store original name with normalized version
+        # Create repeatname directory if moving files
+        if move_files:
+            repeatname_dir = Path("repeatname").resolve()
+            repeatname_dir.mkdir(exist_ok=True)
 
-    # Process each file in workspace recursively
-    for root, dirs, files in os.walk(workspace_dir):
-        for filename in files:
-            file_path = Path(root) / filename
-            print(f"Checking: {file_path}")
+        # Get all filenames from combined index with their normalized versions
+        index_filenames = {normalize_filename(Path(key).name): key for key in index_data.keys()}
 
-            if should_skip_file(file_path, workspace_dir):
-                continue
+        # Keep track of duplicate and similar files
+        duplicate_files = []
+        similar_files = []
+        seen_names = {}  # Change to dict to store original name with normalized version
 
-            normalized_name = normalize_filename(filename)
+        # Process each file in workspace recursively
+        for root, dirs, files in os.walk(workspace_dir):
+            for filename in files:
+                file_path = Path(root) / filename
+                print(f"Checking: {file_path}")
 
-            # Check for exact duplicates
-            if normalized_name in index_filenames or normalized_name in seen_names:
-                size = get_file_size(file_path)
-                if normalized_name in index_filenames:
-                    index_path = index_filenames[normalized_name]
-                    duplicate_files.append((file_path, "exact duplicate (normalized)", size, index_path))
-                else:
-                    existing_file = find_existing_file(workspace_dir, seen_names[normalized_name])
-                    if existing_file and existing_file != str(file_path):
-                        duplicate_files.append((file_path, "exact duplicate (normalized)", size, existing_file))
-                if move_files:
-                    print(f"Moving {file_path} to repeatname directory: Normalized filename already exists")
-                    shutil.move(file_path, repeatname_dir / filename)
-                else:
-                    print(f"Warning: {file_path} has a duplicate normalized filename")
-            
-            # Check for similar names if threshold is set
-            elif similarity_threshold is not None:
-                size = get_file_size(file_path)
-                # Check against index filenames
-                for index_norm_name, index_path in index_filenames.items():
-                    if is_similar_name(filename, Path(index_path).name, similarity_threshold, prefix_only):
-                        match_type = "prefix match with" if prefix_only else "similar to"
-                        similar_files.append((file_path, f"{match_type} {Path(index_path).name}", size, index_path))
-                        if move_files:
-                            print(f"Moving {file_path} to repeatname directory: {match_type} {Path(index_path).name}")
-                            shutil.move(file_path, repeatname_dir / filename)
-                        else:
-                            print(f"Warning: {file_path} is {match_type} {Path(index_path).name}")
-                        break
-                
-                # Check against seen names
-                for seen_norm_name, seen_orig_name in seen_names.items():
-                    if is_similar_name(filename, seen_orig_name, similarity_threshold, prefix_only):
-                        match_type = "prefix match with" if prefix_only else "similar to"
-                        existing_file = find_existing_file(workspace_dir, seen_orig_name)
+                if should_skip_file(file_path, workspace_dir):
+                    continue
+
+                normalized_name = normalize_filename(filename)
+
+                # Check for exact duplicates
+                if normalized_name in index_filenames or normalized_name in seen_names:
+                    size = get_file_size(file_path)
+                    if normalized_name in index_filenames:
+                        index_path = index_filenames[normalized_name]
+                        duplicate_files.append((file_path, "exact duplicate (normalized)", size, index_path))
+                    else:
+                        existing_file = find_existing_file(workspace_dir, seen_names[normalized_name])
                         if existing_file and existing_file != str(file_path):
-                            similar_files.append((file_path, f"{match_type} {seen_orig_name}", size, existing_file))
+                            duplicate_files.append((file_path, "exact duplicate (normalized)", size, existing_file))
+                    if move_files:
+                        print(f"Moving {file_path} to repeatname directory: Normalized filename already exists")
+                        shutil.move(file_path, repeatname_dir / filename)
+                    else:
+                        print(f"Warning: {file_path} has a duplicate normalized filename")
+
+                # Check for similar names if threshold is set
+                elif similarity_threshold is not None:
+                    size = get_file_size(file_path)
+                    # Check against index filenames
+                    for index_norm_name, index_path in index_filenames.items():
+                        if is_similar_name(filename, Path(index_path).name, similarity_threshold, prefix_only):
+                            match_type = "prefix match with" if prefix_only else "similar to"
+                            similar_files.append((file_path, f"{match_type} {Path(index_path).name}", size, index_path))
                             if move_files:
-                                print(f"Moving {file_path} to repeatname directory: {match_type} {seen_orig_name}")
+                                print(f"Moving {file_path} to repeatname directory: {match_type} {Path(index_path).name}")
                                 shutil.move(file_path, repeatname_dir / filename)
                             else:
-                                print(f"Warning: {file_path} is {match_type} {seen_orig_name}")
+                                print(f"Warning: {file_path} is {match_type} {Path(index_path).name}")
                             break
-            
-            seen_names[normalized_name] = filename
 
-    # Print summary
-    print("\nSummary:")
-    print(f"Total files checked: {len(seen_names)}")
-    print(f"Exact duplicates found: {len(duplicate_files)}")
-    if similarity_threshold is not None:
-        print(f"Similar names found: {len(similar_files)}")
-    
-    if duplicate_files:
-        print("\nExact duplicate files:")
-        for file_path, reason, size, original in duplicate_files:
-            original_size = get_file_size(original) if os.path.exists(original) else "N/A"
-            print(f"- {file_path} ({reason})")
-            print(f"  Size: {size} | Original: {original} ({original_size})")
-            
-    if similar_files:
-        print("\nSimilar named files:")
-        for file_path, reason, size, original in similar_files:
-            original_size = get_file_size(original) if os.path.exists(original) else "N/A"
-            print(f"- {file_path} ({reason})")
-            print(f"  Size: {size} | Original: {original} ({original_size})")
+                    # Check against seen names
+                    for seen_norm_name, seen_orig_name in seen_names.items():
+                        if is_similar_name(filename, seen_orig_name, similarity_threshold, prefix_only):
+                            match_type = "prefix match with" if prefix_only else "similar to"
+                            existing_file = find_existing_file(workspace_dir, seen_orig_name)
+                            if existing_file and existing_file != str(file_path):
+                                similar_files.append((file_path, f"{match_type} {seen_orig_name}", size, existing_file))
+                                if move_files:
+                                    print(f"Moving {file_path} to repeatname directory: {match_type} {seen_orig_name}")
+                                    shutil.move(file_path, repeatname_dir / filename)
+                                else:
+                                    print(f"Warning: {file_path} is {match_type} {seen_orig_name}")
+                                break
+
+                seen_names[normalized_name] = filename
+
+        # Print summary
+        print("\nSummary:")
+        print(f"Total files checked: {len(seen_names)}")
+        print(f"Exact duplicates found: {len(duplicate_files)}")
+        if similarity_threshold is not None:
+            print(f"Similar names found: {len(similar_files)}")
+
+        if duplicate_files:
+            print("\nExact duplicate files:")
+            for file_path, reason, size, original in duplicate_files:
+                original_size = get_file_size(original) if os.path.exists(original) else "N/A"
+                print(f"- {file_path} ({reason})")
+                print(f"  Size: {size} | Original: {original} ({original_size})")
+
+        if similar_files:
+            print("\nSimilar named files:")
+            for file_path, reason, size, original in similar_files:
+                original_size = get_file_size(original) if os.path.exists(original) else "N/A"
+                print(f"- {file_path} ({reason})")
+                print(f"  Size: {size} | Original: {original} ({original_size})")
+    finally:
+        # Clean up temporary directory
+        try:
+            shutil.rmtree(temp_dir)
+            print(f"\nCleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            print(f"Warning: Could not clean up temp directory {temp_dir}: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description='Check for duplicate filenames against combined index')
